@@ -73,6 +73,15 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    // Parse body se ainda não foi parseado (algumas configurações de Vercel não parseiam automaticamente)
+    if (typeof req.body === 'string') {
+      try {
+        req.body = JSON.parse(req.body);
+      } catch (e) {
+        console.error('Erro ao parsear body como JSON:', req.body);
+        return res.status(400).json({ error: 'Corpo da requisição inválido' });
+      }
+    }
     // ============================================
     // PASSO 4: EXTRAIR DADOS DA REQUISIÇÃO
     // ============================================
@@ -153,6 +162,8 @@ export default async function handler(req: any, res: any) {
     // TRATAMENTO DE ERROS
     // ============================================
     console.error('Erro ao registrar:', error);
+    console.error('Erro stack:', error.stack);
+    console.error('Erro code:', error.code);
 
     // Erro 23505 é código PostgreSQL para violação de constraint UNIQUE
     // Significa: email já existe no banco (constraint UNIQUE em email)
@@ -160,7 +171,18 @@ export default async function handler(req: any, res: any) {
       return res.status(409).json({ error: 'Email já cadastrado' });
     }
 
+    // Se DATABASE_URL não está configurado (erro comum em Vercel)
+    if (error.message && (error.message.includes('connection string') || error.message.includes('DATABASE'))) {
+      return res.status(503).json({ 
+        error: 'Banco de dados não configurado. Contate administrador.',
+        details: error.message 
+      });
+    }
+
     // Qualquer outro erro: retorna erro genérico 500 Internal Server Error
-    return res.status(500).json({ error: error.message || 'Erro interno' });
+    return res.status(500).json({ 
+      error: error.message || 'Erro interno ao registrar usuário',
+      type: error.constructor.name 
+    });
   }
 }

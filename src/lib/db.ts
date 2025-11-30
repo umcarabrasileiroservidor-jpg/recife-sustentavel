@@ -19,9 +19,11 @@ declare global {
 
 const pool: Pool = globalThis.__pgPool ?? new Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false } as any,
+  ssl: true, // SSL obrigatório para Neon
 });
 
 if (!globalThis.__pgPool) globalThis.__pgPool = pool;
+
+console.log('✅ Pool de conexão criado com sucesso (reutilizável em serverless)');
 
 export default pool;

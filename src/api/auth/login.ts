@@ -72,20 +72,33 @@ export default async function handler(req: any, res: any) {
     // ============================================
     // PASSO 4: EXTRAIR DADOS DA REQUISIÇÃO
     // ============================================
-    const { email, senha } = req.body;
+    console.log('\n🔐 [LOGIN] Iniciando login...');
+    
+    let requestBody = req.body;
+    if (typeof requestBody === 'string') {
+      try {
+        requestBody = JSON.parse(requestBody);
+      } catch (e) {
+        console.error('❌ [LOGIN] Erro ao parsear JSON:', requestBody);
+        return res.status(400).json({ error: 'Body JSON inválido' });
+      }
+    }
+
+    const { email, senha } = requestBody || {};
+    console.log('📝 [LOGIN] Dados recebidos:', { email: email ? '✅' : '❌', senha: senha ? '✅' : '❌' });
 
     // ============================================
     // PASSO 5: VALIDAR DADOS OBRIGATÓRIOS
     // ============================================
     if (!email || !senha) {
+      console.error('❌ [LOGIN] Email ou senha faltando');
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
     // ============================================
     // PASSO 6: BUSCAR USUÁRIO NO BANCO
     // ============================================
-    // SQL: SELECT ... FROM usuarios WHERE email = $1
-    // Procura por um usuário com o email fornecido
+    console.log('🔍 [LOGIN] Buscando usuário com email:', email);
     const result = await pool.query(
       `SELECT id, nome, email, senha_hash, cpf, telefone, saldo_pontos, nivel_usuario
        FROM usuarios WHERE email = $1`,
@@ -95,12 +108,8 @@ export default async function handler(req: any, res: any) {
     // ============================================
     // PASSO 7: VERIFICAR SE USUÁRIO FOI ENCONTRADO
     // ============================================
-    // result.rows contém os usuários encontrados (deve ser 0 ou 1 por causa de UNIQUE)
     if (result.rows.length === 0) {
-      // Usuário não encontrado
-      // ⚠️ IMPORTANTE: Retornamos "Email ou senha inválidos" genérico
-      // Não dizemos "Email não encontrado" porque revela que o email não está cadastrado
-      // Isso é importante para SEGURANÇA: não deixa alguém descobrir quais emails existem
+      console.warn('⚠️ [LOGIN] Usuário não encontrado:', email);
       return res.status(401).json({ error: 'Email ou senha inválidos' });
     }
 
@@ -108,35 +117,33 @@ export default async function handler(req: any, res: any) {
     // PASSO 8: EXTRAIR DADOS DO USUÁRIO
     // ============================================
     const usuario = result.rows[0];
+    console.log('✅ [LOGIN] Usuário encontrado:', { id: usuario.id, email: usuario.email });
 
     // ============================================
     // PASSO 9: COMPARAR SENHAS
     // ============================================
-    // senhaHash é o hash guardado no banco (ex: "$2a$10$...")
-    // senha é o texto plano que o usuário digitou
-    // compararSenha() usa bcryptjs.compare() para validar
+    console.log('🔒 [LOGIN] Validando senha...');
     const senhaValida = await compararSenha(senha, usuario.senha_hash);
 
     // ============================================
     // PASSO 10: VERIFICAR SE SENHA ESTÁ CORRETA
     // ============================================
     if (!senhaValida) {
-      // Novamente: "Email ou senha inválidos" genérico
-      // Não revelamos se a senha está errada ou se é o email
+      console.warn('⚠️ [LOGIN] Senha incorreta para:', email);
       return res.status(401).json({ error: 'Email ou senha inválidos' });
     }
+
+    console.log('✅ [LOGIN] Senha válida! Gerando token...');
 
     // ============================================
     // PASSO 11: GERAR JWT TOKEN
     // ============================================
-    // Se chegou aqui: email e senha estão corretos!
-    // Geramos um novo token JWT para este usuário
     const token = gerarToken(usuario.id, usuario.email);
+    console.log('✅ [LOGIN] Login realizado com sucesso!', { id: usuario.id, email: usuario.email });
 
     // ============================================
     // PASSO 12: RETORNAR SUCESSO
     // ============================================
-    // Status 200 OK (login bem-sucedido)
     return res.status(200).json({
       success: true,
       token,
@@ -155,9 +162,21 @@ export default async function handler(req: any, res: any) {
     // ============================================
     // TRATAMENTO DE ERROS
     // ============================================
-    console.error('Erro ao fazer login:', error);
-    // Erro genérico 500 para não revelar detalhes
-    return res.status(500).json({ error: error.message || 'Erro interno' });
+    console.error('❌ [LOGIN] ERRO FATAL:', error.message);
+    console.error('📋 [LOGIN] Código do erro:', error.code);
+    console.error('🔍 [LOGIN] Stack completo:', error.stack);
+
+    if (error.message && error.message.includes('relation "usuarios" does not exist')) {
+      console.error('❌ [LOGIN] TABELA NÃO EXISTE: usuarios');
+      return res.status(503).json({ error: 'Tabela de usuários não configurada no banco' });
+    }
+
+    if (error.message && error.message.includes('password authentication failed')) {
+      console.error('❌ [LOGIN] ERRO DE AUTENTICAÇÃO: Verifique DATABASE_URL');
+      return res.status(503).json({ error: 'Erro ao conectar ao banco - credenciais inválidas' });
+    }
+
+    return res.status(500).json({ error: error.message || 'Erro interno', details: error.message });
   }
 }
 

@@ -30,15 +30,12 @@ export function Rewards() {
     if (selectedReward) {
       setIsRedeeming(true);
       
-      const success = await resgatarRecompensa(selectedReward.value, selectedReward.title); // Usando nome correto
+      const success = await resgatarRecompensa(selectedReward.value, selectedReward.title);
 
       if (success) {
-        toast.success(`${selectedReward.title} resgatado com sucesso! 🎉`);
         await refreshUser();
         setShowDialog(false);
         setSelectedReward(null);
-      } else {
-        // Toast de erro já é chamado no serviço
       }
       setIsRedeeming(false);
     }

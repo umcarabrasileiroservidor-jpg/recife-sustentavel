@@ -1,6 +1,8 @@
 // src/services/dataService.ts
 // Serviço de API que usa fetch para conversar com os endpoints serverless em /api
 
+import { toast } from 'sonner';
+
 export type SignupPayload = {
   nome: string;
   email: string;
@@ -90,10 +92,11 @@ export async function login(data: LoginPayload) {
   }
 }
 
-export async function registrarDescarte(payload: DescartePayload) {
+// Registrar Descarte — retorna { success: boolean, points: number, msg?: string }
+export async function registrarDescarte(payload: DescartePayload): Promise<{ success: boolean; points?: number; msg?: string }> {
   try {
     const token = localStorage.getItem('token');
-    if (!token) throw new Error('Usuário não autenticado');
+    if (!token) return { success: false, msg: 'Usuário não autenticado' };
 
     const res = await fetch(`${API_BASE}/api/descarte`, {
       method: 'POST',
@@ -105,25 +108,28 @@ export async function registrarDescarte(payload: DescartePayload) {
     });
     const contentType = res.headers.get('content-type') || '';
     const text = await res.text();
+    
     if (!res.ok) {
+      let errorMsg = 'Erro ao processar descarte';
       if (contentType.includes('application/json')) {
         try {
           const jsonErr = JSON.parse(text);
-          throw new Error(jsonErr.error || JSON.stringify(jsonErr));
+          errorMsg = jsonErr.error || errorMsg;
         } catch {
-          throw new Error(text || 'Erro desconhecido');
+          errorMsg = text || errorMsg;
         }
       }
-      throw new Error(text || 'Erro desconhecido');
+      return { success: false, msg: errorMsg };
     }
 
-    if (contentType.includes('application/json')) {
-      return JSON.parse(text);
-    }
-    try { return JSON.parse(text); } catch { return text; }
+    const jsonData = contentType.includes('application/json') ? JSON.parse(text) : (() => {
+      try { return JSON.parse(text); } catch { return text; }
+    })();
+    
+    return { success: true, points: jsonData.points || jsonData.descarte?.pontos_ganhos || 0 };
   } catch (err) {
     console.error('registrarDescarte error', err);
-    throw err;
+    return { success: false, msg: (err as Error).message || 'Erro de conexão' };
   }
 }
 
@@ -181,7 +187,10 @@ export interface UserProfile {
 export async function resgatarRecompensa(custo: number, titulo: string): Promise<boolean> {
   try {
     const token = localStorage.getItem('token');
-    if (!token) throw new Error('Usuário não autenticado');
+    if (!token) {
+      toast.error('Usuário não autenticado');
+      return false;
+    }
 
     const res = await fetch(`${API_BASE}/api/recompensa`, {
       method: 'POST',
@@ -192,15 +201,28 @@ export async function resgatarRecompensa(custo: number, titulo: string): Promise
       body: JSON.stringify({ cost: custo, title: titulo })
     });
 
+    const contentType = res.headers.get('content-type') || '';
+    const text = await res.text();
+
     if (!res.ok) {
-      const text = await res.text();
-      console.error('Erro ao resgatar recompensa:', text);
+      let errorMsg = 'Erro ao resgatar recompensa';
+      if (contentType.includes('application/json')) {
+        try {
+          const jsonErr = JSON.parse(text);
+          errorMsg = jsonErr.error || errorMsg;
+        } catch {
+          errorMsg = text || errorMsg;
+        }
+      }
+      toast.error(errorMsg);
       return false;
     }
 
+    toast.success(`${titulo} resgatado com sucesso! 🎉`);
     return true;
   } catch (err) {
     console.error('resgatarRecompensa error', err);
+    toast.error('Erro ao resgatar recompensa');
     return false;
   }
 }

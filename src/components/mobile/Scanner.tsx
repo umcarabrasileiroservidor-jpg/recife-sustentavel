@@ -81,8 +81,9 @@ export function Scanner({ onNavigate }: ScannerProps) {
     if (res.success) {
       toast.success(`+${res.points} Capivaras! Saldo atualizado.`);
       await refreshUser();
+      setStep('result'); // Mantém na tela de resultado por um momento
     } else {
-      toast.error(res.msg);
+      toast.error(res.msg || 'Erro ao processar descarte');
     }
     setSaving(false);
   };

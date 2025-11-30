@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -7,7 +6,7 @@ import { User, Bell, Shield, HelpCircle, Settings, LogOut, ChevronRight, Loader2
 import { Badge } from '../ui/badge';
 import { UserData } from '../../App';
 import { toast } from 'sonner';
-import { getCurrentUserProfile, UserProfile } from '../../services/dataService';
+import { useUser } from '../../contexts/UserContext';
 
 interface ProfileProps {
   userData: UserData;
@@ -15,41 +14,22 @@ interface ProfileProps {
 }
 
 export function Profile({ onLogout }: ProfileProps) {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Carrega dados reais do Supabase
-  useEffect(() => {
-    async function loadProfile() {
-      try {
-        const data = await getCurrentUserProfile();
-        if (data) {
-          setProfile(data);
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error("Erro ao carregar perfil.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadProfile();
-  }, []);
+  const { user, loading } = useUser();
 
   const showPersonalData = () => {
-    if (!profile) return;
+    if (!user) return;
     toast.info("Dados Cadastrais", {
-      description: `Nome: ${profile.nome}\nCPF: ${profile.cpf}\nEmail: ${profile.email}`,
+      description: `Nome: ${user.name}\nEmail: ${user.email}\nCPF: ${user.cpf || 'Não informado'}`,
       duration: 5000,
     });
   };
 
   const menuItems = [
     { icon: User, label: 'Dados pessoais', action: showPersonalData },
-    { icon: Bell, label: 'Notificações', action: () => toast.success("Sem novas notificações.") },
-    { icon: Shield, label: 'Privacidade', action: () => toast.info("Seus dados estão protegidos no Supabase.") },
+    { icon: Bell, label: 'Notificações', action: () => toast.success("Notificações ativadas.") },
+    { icon: Shield, label: 'Privacidade', action: () => toast.info("Seus dados estão seguros no Neon DB.") },
     { icon: HelpCircle, label: 'Ajuda e suporte', action: () => toast.info("Suporte: contato@recifesustentavel.com") },
-    { icon: Settings, label: 'Configurações', action: () => toast.info("Versão: 1.0.2 (Produção)") },
+    { icon: Settings, label: 'Configurações', action: () => toast.info("Versão: 2.0 (Neon + Vercel)") },
   ];
 
   if (loading) {
@@ -60,7 +40,7 @@ export function Profile({ onLogout }: ProfileProps) {
     );
   }
 
-  if (!profile) return null;
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,12 +49,12 @@ export function Profile({ onLogout }: ProfileProps) {
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
           <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-white/20 shadow-xl">
             <AvatarFallback className="bg-white/20 text-primary-foreground text-2xl font-bold">
-              {profile.nome.substring(0, 2).toUpperCase()}
+              {user.name.substring(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <h2 className="mb-2 text-2xl font-bold">{profile.nome}</h2>
+          <h2 className="mb-2 text-2xl font-bold">{user.name}</h2>
           <Badge className="bg-white/20 text-primary-foreground border-0 mb-3 px-3 py-1 backdrop-blur-sm">
-            {profile.nivel_usuario || 'Iniciante'}
+            Iniciante
           </Badge>
           <p className="text-sm text-primary-foreground/80">
             Membro Ativo
@@ -87,20 +67,20 @@ export function Profile({ onLogout }: ProfileProps) {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 gap-4">
           <Card className="shadow-md border-none">
             <CardContent className="p-4 text-center">
-              <div className="text-3xl font-bold mb-1 text-primary">{profile.total_descartes}</div>
+              <div className="text-3xl font-bold mb-1 text-primary">--</div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Descartes</p>
             </CardContent>
           </Card>
 
           <Card className="shadow-md border-none">
             <CardContent className="p-4 text-center">
-              <div className="text-3xl font-bold mb-1 text-secondary-foreground">{profile.saldo_capivaras}</div>
+              <div className="text-3xl font-bold mb-1 text-secondary-foreground">{user.balance}</div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Capivaras</p>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Menu */}
+        {/* Menu Funcional */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-2">
           {menuItems.map((item, index) => {
             const Icon = item.icon;

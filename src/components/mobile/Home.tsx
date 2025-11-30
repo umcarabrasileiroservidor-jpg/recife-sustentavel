@@ -4,50 +4,38 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { ScanLine, Map, TrendingUp, Trash2, Award, Lock, Gift, Loader2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import { UserData } from '../../App';
-import { getDashboardData, calculateTimeLeft, UserProfile, Transaction } from '../../services/dataService';
+import { useUser } from '../../contexts/UserContext'; // Contexto Global
+import { checkTimeLimit } from '../../utils/timeUtils'; // Utilitário de tempo
 import { WeeklyGoal } from './WeeklyGoal';
 import { toast } from 'sonner';
 
 interface HomeProps {
-  userData: UserData; // Mantido para compatibilidade, mas usaremos os dados reais do banco
+  userData: any; // Mantido por compatibilidade
   onNavigate: (screen: string) => void;
 }
 
 export function Home({ onNavigate }: HomeProps) {
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [history, setHistory] = useState<Transaction[]>([]);
-  const [availability, setAvailability] = useState({ available: true, timeLeft: '' });
-  const [weeklyCount, setWeeklyCount] = useState(0);
+  const { user, loading, refreshUser } = useUser();
+  const [availability, setAvailability] = useState({ allowed: true, timeLeft: '' });
 
-  // Carrega dados reais ao abrir
+  // Verifica o tempo a cada minuto
   useEffect(() => {
-    loadRealData();
-  }, []);
+    const check = () => {
+      // Tenta pegar o timestamp do localStorage se o usuário do contexto não tiver atualizado ainda
+      const localUser = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}').user;
+      const lastTime = user?.last_disposal_time || localUser?.last_disposal_time;
+      
+      const status = checkTimeLimit(lastTime ? new Date(lastTime).getTime() : null);
+      setAvailability(status);
+    };
 
-  const loadRealData = async () => {
-    try {
-      const data = await getDashboardData();
-      if (data) {
-        setProfile(data.user);
-        setHistory(data.history);
-        setWeeklyCount(data.weeklyProgress);
-        
-        // Calcula se pode descartar agora
-        const status = calculateTimeLeft(data.lastDisposalTime);
-        setAvailability(status);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar home:", error);
-      toast.error("Erro ao sincronizar dados.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    check();
+    const interval = setInterval(check, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const handleScanClick = () => {
-    if (!availability.available) {
+    if (!availability.allowed) {
       toast.error(`Limite diário atingido. Volte em ${availability.timeLeft}`);
       return;
     }
@@ -62,11 +50,12 @@ export function Home({ onNavigate }: HomeProps) {
     );
   }
 
-  if (!profile) {
+  // Fallback se não tiver usuário logado
+  if (!user) {
     return (
-      <div className="p-8 text-center">
-        <p>Não foi possível carregar seus dados.</p>
-        <Button onClick={() => window.location.reload()} className="mt-4">Tentar novamente</Button>
+      <div className="p-8 text-center flex flex-col items-center justify-center h-screen">
+        <p>Sessão expirada.</p>
+        <Button onClick={() => window.location.reload()} className="mt-4">Recarregar</Button>
       </div>
     );
   }
@@ -75,15 +64,14 @@ export function Home({ onNavigate }: HomeProps) {
     <div className="min-h-full bg-gradient-to-b from-primary/5 to-background pb-24">
       {/* Header */}
       <div className="bg-primary text-primary-foreground p-6 pb-8 rounded-b-3xl shadow-lg relative overflow-hidden">
-        {/* Fundo decorativo */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
         
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10">
           <p className="opacity-90 text-sm font-medium">Bem-vindo(a) de volta,</p>
-          <h1 className="text-3xl font-bold mt-1">{profile.nome.split(' ')[0]}! 👋</h1>
+          <h1 className="text-3xl font-bold mt-1">{user.name.split(' ')[0]}! 👋</h1>
         </motion.div>
 
-        {/* Card de Saldo Real */}
+        {/* Card de Saldo */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }} 
           animate={{ opacity: 1, scale: 1 }} 
@@ -96,7 +84,7 @@ export function Home({ onNavigate }: HomeProps) {
                 <div>
                   <p className="text-primary-foreground/80 text-xs uppercase tracking-wider mb-1 font-semibold">Seu Saldo</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-bold tracking-tight">{profile.saldo_capivaras}</span>
+                    <span className="text-5xl font-bold tracking-tight">{user.balance}</span>
                     <span className="text-2xl opacity-90">🌿</span>
                   </div>
                 </div>
@@ -117,11 +105,11 @@ export function Home({ onNavigate }: HomeProps) {
 
       <div className="p-6 space-y-6 -mt-2 relative z-20">
         
-        {/* Meta Semanal Real */}
+        {/* Meta Semanal (Mock visual por enquanto, já que migramos o banco) */}
         <WeeklyGoal 
-          currentProgress={weeklyCount} 
-          goalTarget={3} // Meta fixa de 3 dias
-          hasDiscardedToday={!availability.available} 
+          currentProgress={1} 
+          goalTarget={3} 
+          hasDiscardedToday={!availability.allowed} 
         />
 
         {/* Ações Rápidas */}
@@ -129,14 +117,14 @@ export function Home({ onNavigate }: HomeProps) {
           <div className="grid grid-cols-2 gap-4">
             <Button
               onClick={handleScanClick}
-              disabled={!availability.available}
+              disabled={!availability.allowed}
               className={`h-32 flex-col gap-3 rounded-2xl shadow-md transition-all border-0 ${
-                !availability.available 
+                !availability.allowed 
                   ? 'bg-muted text-muted-foreground' 
                   : 'bg-primary hover:bg-primary/90 hover:scale-[1.02] hover:shadow-xl'
               }`}
             >
-              {availability.available ? (
+              {availability.allowed ? (
                 <>
                   <div className="p-4 bg-white/20 rounded-full"><ScanLine className="w-8 h-8" /></div>
                   <span className="font-bold text-lg">Escanear</span>
@@ -145,7 +133,7 @@ export function Home({ onNavigate }: HomeProps) {
                 <>
                   <div className="p-3 bg-zinc-200/50 rounded-full"><Lock className="w-6 h-6" /></div>
                   <div className="text-center">
-                    <span className="font-bold block text-xs uppercase tracking-wide mb-1">Disponível em</span>
+                    <span className="font-bold block text-xs uppercase tracking-wide mb-1">Volte em</span>
                     <span className="text-base font-mono font-bold">{availability.timeLeft}</span>
                   </div>
                 </>
@@ -163,7 +151,7 @@ export function Home({ onNavigate }: HomeProps) {
           </div>
         </motion.div>
 
-        {/* Estatísticas Reais */}
+        {/* Estatísticas */}
         <div className="grid grid-cols-3 gap-3">
           <Card className="border-none shadow-sm bg-card overflow-hidden">
             <CardContent className="p-3 text-center relative">
@@ -171,8 +159,8 @@ export function Home({ onNavigate }: HomeProps) {
               <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 bg-blue-500/10 text-blue-600">
                 <TrendingUp className="w-4 h-4" />
               </div>
-              <div className="font-bold text-lg leading-none mb-1">{weeklyCount}</div>
-              <p className="text-[10px] text-muted-foreground uppercase font-medium">Esta semana</p>
+              <div className="font-bold text-lg leading-none mb-1">--</div>
+              <p className="text-[10px] text-muted-foreground uppercase font-medium">Semana</p>
             </CardContent>
           </Card>
 
@@ -182,7 +170,7 @@ export function Home({ onNavigate }: HomeProps) {
               <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 bg-green-500/10 text-green-600">
                 <Trash2 className="w-4 h-4" />
               </div>
-              <div className="font-bold text-lg leading-none mb-1">{profile.total_descartes}</div>
+              <div className="font-bold text-lg leading-none mb-1">--</div>
               <p className="text-[10px] text-muted-foreground uppercase font-medium">Total</p>
             </CardContent>
           </Card>
@@ -193,52 +181,10 @@ export function Home({ onNavigate }: HomeProps) {
               <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 bg-amber-500/10 text-amber-600">
                 <Award className="w-4 h-4" />
               </div>
-              <div className="font-bold text-sm leading-none mb-1 truncate pt-1">{profile.nivel_usuario}</div>
+              <div className="font-bold text-sm leading-none mb-1 truncate pt-1">Iniciante</div>
               <p className="text-[10px] text-muted-foreground uppercase font-medium">Nível</p>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Histórico Recente Real */}
-        <div className="space-y-3">
-          <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
-            Atividade Recente
-          </h3>
-          
-          {history.length === 0 ? (
-            <div className="text-center py-10 bg-muted/30 rounded-xl border-2 border-dashed border-muted-foreground/20">
-              <p className="text-muted-foreground font-medium">Nenhuma atividade ainda.</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Seus descartes e resgates aparecerão aqui.</p>
-            </div>
-          ) : (
-            history.map((item, i) => (
-              <motion.div key={item.id_transacao} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}>
-                <Card className="border-none shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                  <CardContent className="p-4 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                        item.tipo === 'ganho' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'
-                      }`}>
-                        {item.tipo === 'ganho' ? <Trash2 className="w-6 h-6" /> : <Gift className="w-6 h-6" />}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm">{item.descricao || (item.tipo === 'ganho' ? 'Descarte realizado' : 'Recompensa resgatada')}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {new Date(item.data_hora).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge 
-                      variant={item.tipo === 'ganho' ? "default" : "outline"} 
-                      className={`text-sm py-1 px-2 ${item.tipo === 'ganho' ? "bg-green-600 hover:bg-green-700" : "text-orange-600 border-orange-200"}`}
-                    >
-                      {item.tipo === 'ganho' ? '+' : '-'}{Math.abs(item.valor)}
-                    </Badge>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
-          )}
         </div>
       </div>
     </div>

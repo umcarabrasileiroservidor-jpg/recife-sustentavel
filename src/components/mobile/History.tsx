@@ -53,7 +53,7 @@ export function History() {
 
       <div className="p-6 space-y-4">
         {/* Filters */}
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full">
+        <Tabs value={filter} onValueChange={(v: string) => setFilter(v as typeof filter)} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="all">Todos</TabsTrigger>
             <TabsTrigger value="valid">Válidos</TabsTrigger>

@@ -5,15 +5,15 @@ import L from 'leaflet';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Navigation, MapPin, Locate, Maximize2, Minimize2, Recycle, Loader2 } from 'lucide-react';
+import { Navigation, MapPin, Locate, Maximize2, Minimize2, Recycle } from 'lucide-react';
 import { motion } from 'motion/react';
-import { supabase } from '../../supabaseClient';
 
 // --- Configuração dos Ícones ---
 import iconMarker from 'leaflet/dist/images/marker-icon.png';
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
+// Força o TS a aceitar as imagens como string
 const DefaultIcon = L.icon({
     iconUrl: iconMarker as unknown as string,
     iconRetinaUrl: iconRetina as unknown as string,
@@ -31,6 +31,7 @@ const UserIcon = L.divIcon({
   iconAnchor: [10, 10]
 });
 
+// --- Função de Distância (Haversine) ---
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; 
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -42,6 +43,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return `${d.toFixed(1)} km`;
 }
 
+// --- Controlador do Mapa ---
 function MapController({ lat, lng, zoom = 15 }: { lat: number; lng: number; zoom?: number }) {
   const map = useMap();
   useEffect(() => {
@@ -53,13 +55,30 @@ function MapController({ lat, lng, zoom = 15 }: { lat: number; lng: number; zoom
   return null;
 }
 
+// --- Dados dos Ecopontos ---
+const binSets = [
+  { id: 1, location: 'Praça do Derby', types: ['Plástico', 'Metal', 'Papel'], lat: -8.0522, lng: -34.8956 },
+  { id: 2, location: 'Parque da Jaqueira', types: ['Orgânico', 'Metal'], lat: -8.0389, lng: -34.8989 },
+  { id: 3, location: 'Shopping Recife', types: ['Eletrônico', 'Pilhas'], lat: -8.1194, lng: -34.9050 },
+  { id: 4, location: 'Boa Viagem (Posto 7)', types: ['Plástico', 'Vidro'], lat: -8.1277, lng: -34.8948 },
+  { id: 5, location: 'Casa Forte', types: ['Orgânico', 'Seco'], lat: -8.0265, lng: -34.9264 },
+];
+
+const typeColors: Record<string, string> = {
+  'Plástico': 'bg-red-100 text-red-700 border-red-200',
+  'Metal': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  'Papel': 'bg-blue-100 text-blue-700 border-blue-200',
+  'Vidro': 'bg-green-100 text-green-700 border-green-200',
+  'Orgânico': 'bg-amber-100 text-amber-800 border-amber-200',
+  'Eletrônico': 'bg-purple-100 text-purple-700 border-purple-200',
+};
+
 export function BinMap() {
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [selectedBinId, setSelectedBinId] = useState<number | null>(null);
-  const [bins, setBins] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
 
+  // Padrão: Recife Antigo
   const defaultLocation = { lat: -8.0631, lng: -34.8711 }; 
   const currentLocation = userLocation || defaultLocation;
 
@@ -73,42 +92,20 @@ export function BinMap() {
     }
   }, []);
 
-  useEffect(() => {
-    async function fetchBins() {
-      try {
-        const { data, error } = await supabase.from('lixeira_inteligente').select('*');
-        if (error) throw error;
-        
-        const mappedBins = (data || []).map(b => ({
-          id: b.id_lixeira,
-          location: b.localizacao || b.bairro || 'Lixeira',
-          type: b.tipo_residuo,
-          lat: Number(b.latitude),
-          lng: Number(b.longitude),
-          status: b.status
-        }));
-        
-        setBins(mappedBins);
-      } catch (err) {
-        console.error("Erro ao buscar lixeiras:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchBins();
-  }, []);
-
-  const binsWithDistance = bins.map(bin => ({
+  // Calcula distância
+  const binsWithDistance = binSets.map(bin => ({
     ...bin,
     distance: calculateDistance(currentLocation.lat, currentLocation.lng, bin.lat, bin.lng)
   })).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
 
   const mapCenter = selectedBinId 
-    ? bins.find(b => b.id === selectedBinId) || currentLocation
+    ? binSets.find(b => b.id === selectedBinId) || currentLocation
     : currentLocation;
 
   return (
     <div className="h-screen flex flex-col bg-background relative overflow-hidden">
+      
+      {/* --- MAPA --- */}
       <motion.div 
         layout
         className={`relative w-full transition-all duration-500 ease-in-out ${
@@ -128,11 +125,14 @@ export function BinMap() {
           
           {userLocation && <Marker position={[userLocation.lat, userLocation.lng]} icon={UserIcon} />}
           
-          {bins.map(bin => (
+          {binSets.map(bin => (
             <Marker 
               key={bin.id} 
               position={[bin.lat, bin.lng]} 
-              eventHandlers={{ click: () => setSelectedBinId(bin.id) }}
+              // CORREÇÃO AQUI: Removido o tipo explícito (e: ...)
+              eventHandlers={{ 
+                click: () => setSelectedBinId(bin.id) 
+              }}
             >
               <Popup>
                 <strong>{bin.location}</strong>
@@ -156,8 +156,10 @@ export function BinMap() {
         </div>
       </motion.div>
 
+      {/* --- LISTA --- */}
       {!isMapExpanded && (
         <div className="flex-1 bg-background rounded-t-3xl -mt-6 relative z-10 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] flex flex-col">
+          
           <div className="w-full flex justify-center pt-3 pb-1">
             <div className="w-12 h-1.5 bg-muted rounded-full" />
           </div>
@@ -168,17 +170,12 @@ export function BinMap() {
               <p className="text-xs text-muted-foreground">Ordenado por proximidade</p>
             </div>
             <Badge variant="secondary" className="gap-1">
-              <Recycle className="w-3 h-3" /> {bins.length}
+              <Recycle className="w-3 h-3" /> {binSets.length}
             </Badge>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
-            {loading ? (
-              <div className="text-center py-10 text-muted-foreground flex flex-col items-center gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <p>Carregando lixeiras...</p>
-              </div>
-            ) : binsWithDistance.map((bin) => (
+            {binsWithDistance.map((bin) => (
               <Card 
                 key={bin.id} 
                 onClick={() => setSelectedBinId(bin.id)}
@@ -197,9 +194,11 @@ export function BinMap() {
                       <div>
                         <h3 className="font-semibold text-sm">{bin.location}</h3>
                         <div className="flex flex-wrap gap-1 mt-1.5">
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/20 bg-primary/5 text-primary">
-                            {bin.type}
-                          </Badge>
+                          {bin.types.map(t => (
+                            <Badge key={t} variant="outline" className={`text-[10px] px-1.5 py-0 border-0 ${typeColors[t] || 'bg-gray-100'}`}>
+                              {t}
+                            </Badge>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -213,7 +212,7 @@ export function BinMap() {
                           <Button 
                             size="sm" 
                             className="h-7 text-xs bg-primary hover:bg-primary/90"
-                            onClick={(e: React.MouseEvent) => { // Correção AQUI
+                            onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               window.open(`https://www.google.com/maps/dir/?api=1&destination=${bin.lat},${bin.lng}`, '_blank');
                             }}

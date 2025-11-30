@@ -24,7 +24,7 @@ export function Rewards() {
   const [isRedeeming, setIsRedeeming] = useState(false);
   
   const { user, refreshUser } = useUser();
-  const userBalance = user?.saldo_capivaras || 0;
+ const userBalance = user?.balance || 0;
 
   const handleRedeem = async () => {
     if (selectedReward) {

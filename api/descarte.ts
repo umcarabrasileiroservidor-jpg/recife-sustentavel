@@ -27,7 +27,7 @@ async function uploadToVercelBlob(name: string, buffer: Buffer) {
   const putRes = await fetch(uploadUrl, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/octet-stream' },
-    body: buffer
+    body: buffer as any
   });
 
   if (!putRes.ok) {

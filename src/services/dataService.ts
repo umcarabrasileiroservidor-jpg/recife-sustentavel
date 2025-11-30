@@ -12,16 +12,17 @@ export type SignupPayload = {
 export type LoginPayload = { email: string; senha: string };
 
 export type DescartePayload = {
-  type: string;
-  imageBase64: string;
-  multiplier?: number;
+  tipo_residuo: string;
+  imageBase64?: string;
+  multiplicador_volume?: number;
+  pontos_base?: number;
 };
 
 const API_BASE: string = '';
 
 export async function signup(data: SignupPayload) {
   try {
-    const res = await fetch(`${API_BASE}/api/signup`, {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -58,7 +59,7 @@ export async function signup(data: SignupPayload) {
 
 export async function login(data: LoginPayload) {
   try {
-    const res = await fetch(`${API_BASE}/api/login`, {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)

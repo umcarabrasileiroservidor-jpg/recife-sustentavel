@@ -71,8 +71,12 @@ export function Scanner({ onNavigate }: ScannerProps) {
 
   const handleSave = async (multiplier: number, imageSrc: string) => {
     setSaving(true);
-    // CORREÇÃO: enviar payload object esperado por registrarDescarte
-    const res = await registrarDescarte({ type: binData?.type || 'GERAL', imageBase64: imageSrc, multiplier });
+    // Enviar payload correto para API: tipo_residuo, imageBase64, multiplicador_volume
+    const res = await registrarDescarte({ 
+      tipo_residuo: binData?.type || 'GERAL', 
+      imageBase64: imageSrc, 
+      multiplicador_volume: multiplier 
+    });
     
     if (res.success) {
       toast.success(`+${res.points} Capivaras! Saldo atualizado.`);

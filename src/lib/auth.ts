@@ -29,7 +29,10 @@ import type { SignOptions } from 'jsonwebtoken';
  * ⚠️ NUNCA comita esta chave no GitHub!
  * ⚠️ Em produção, deve ser gerado randomicamente (ex: 256 bits de entropia)
  */
-const JWT_SECRET = process.env.JWT_SECRET || "segredo-super-secreto-do-projeto-recife-2025";
+const JWT_SECRET = process.env.JWT_SECRET as string | undefined;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET não está definido. Adicione JWT_SECRET em .env.local ou nas variáveis de ambiente.');
+}
 
 /**
  * INTERFACE: TokenPayload

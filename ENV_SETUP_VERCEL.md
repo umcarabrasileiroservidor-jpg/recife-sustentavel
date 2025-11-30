@@ -10,9 +10,9 @@ Abra `.env.local` e copie os valores:
 
 ```env
 DATABASE_URL=postgresql://...  # URL do Neon
-JWT_SECRET=segredo-super-...    # Segredo JWT
-BLOB_READ_WRITE_TOKEN=vercel... # Token Vercel Blob (opcional para descarte)
-GOOGLE_API_KEY=AlzaSy...        # Google Gemini key (opcional para IA validator)
+JWT_SECRET=insira_sua_chave_secreta_aqui    # Segredo JWT (não comitar!)
+BLOB_READ_WRITE_TOKEN=seu_token_blob_aqui   # Token Vercel Blob (opcional para descarte)
+GOOGLE_API_KEY=sua_chave_google_gemini_aqui # Google Gemini key (opcional)
 ```
 
 ### Passo 2: Abrir Dashboard do Vercel
@@ -28,9 +28,9 @@ Para cada variável, clique em **Add New** e preencha:
 | Nome | Valor | Production |
 |------|-------|------------|
 | `DATABASE_URL` | `postgresql://neondb_owner:npg_...` | ✓ |
-| `JWT_SECRET` | `segredo-super-secreto-do-projeto-recife-2025` | ✓ |
-| `BLOB_READ_WRITE_TOKEN` | `vercel_blob_rw_zk1f...` | ✓ |
-| `GOOGLE_API_KEY` | `AlzaSyAO2sLQe...` | ✓ |
+| `JWT_SECRET` | `insira_sua_chave_secreta_aqui` | ✓ |
+| `BLOB_READ_WRITE_TOKEN` | `seu_token_blob_aqui` | ✓ |
+| `GOOGLE_API_KEY` | `sua_chave_google_gemini_aqui` | ✓ |
 
 **Importante:** Certifique-se de marcar **Production** para cada uma (o checkbox verde).
 

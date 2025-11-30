@@ -43,9 +43,9 @@ Ir em **Settings → Environment Variables** e adicionar:
 | Variável | Valor | Exemplo |
 |----------|-------|---------|
 | `DATABASE_URL` | URL Neon completa | `postgresql://neondb_owner:npg_...` |
-| `JWT_SECRET` | String secreta | `segredo-super-secreto-do-projeto-recife-2025` |
-| `BLOB_READ_WRITE_TOKEN` | Token Vercel Blob (opcional) | `vercel_blob_rw_zk1f...` |
-| `GOOGLE_API_KEY` | Google Gemini key (opcional) | `AlzaSyAO2s...` |
+| `JWT_SECRET` | String secreta | `insira_sua_chave_secreta_aqui` |
+| `BLOB_READ_WRITE_TOKEN` | Token Vercel Blob (opcional) | `seu_token_blob_aqui` |
+| `GOOGLE_API_KEY` | Google Gemini key (opcional) | `sua_chave_google_gemini_aqui` |
 
 **⚠️ IMPORTANTE:** Para cada variável, marque **Production** (checkbox verde).
 

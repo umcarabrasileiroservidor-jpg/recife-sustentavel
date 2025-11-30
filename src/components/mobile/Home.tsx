@@ -9,9 +9,11 @@ import { checkTimeLimit } from '../../utils/timeUtils'; // Utilitário de tempo
 import { WeeklyGoal } from './WeeklyGoal';
 import { toast } from 'sonner';
 
+type Screen = 'home' | 'scanner' | 'history' | 'wallet' | 'rewards' | 'penalties' | 'map' | 'profile';
+
 interface HomeProps {
   userData: any; // Mantido por compatibilidade
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: Screen) => void;
 }
 
 export function Home({ onNavigate }: HomeProps) {
@@ -23,7 +25,7 @@ export function Home({ onNavigate }: HomeProps) {
     const check = () => {
       // Tenta pegar o timestamp do localStorage se o usuário do contexto não tiver atualizado ainda
       const localUser = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}').user;
-      const lastTime = user?.last_disposal_time || localUser?.last_disposal_time;
+      const lastTime = user?.ultimo_descarte || localUser?.ultimo_descarte;
       
       const status = checkTimeLimit(lastTime ? new Date(lastTime).getTime() : null);
       setAvailability(status);
@@ -68,7 +70,7 @@ export function Home({ onNavigate }: HomeProps) {
         
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10">
           <p className="opacity-90 text-sm font-medium">Bem-vindo(a) de volta,</p>
-          <h1 className="text-3xl font-bold mt-1">{user.name.split(' ')[0]}! 👋</h1>
+          <h1 className="text-3xl font-bold mt-1">{(user as any).nome.split(' ')[0]}! 👋</h1>
         </motion.div>
 
         {/* Card de Saldo */}
@@ -84,7 +86,7 @@ export function Home({ onNavigate }: HomeProps) {
                 <div>
                   <p className="text-primary-foreground/80 text-xs uppercase tracking-wider mb-1 font-semibold">Seu Saldo</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-bold tracking-tight">{user.balance}</span>
+                    <span className="text-5xl font-bold tracking-tight">{(user as any).saldo_pontos}</span>
                     <span className="text-2xl opacity-90">🌿</span>
                   </div>
                 </div>

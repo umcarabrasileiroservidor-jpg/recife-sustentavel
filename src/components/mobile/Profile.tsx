@@ -19,7 +19,7 @@ export function Profile({ onLogout }: ProfileProps) {
   const showPersonalData = () => {
     if (!user) return;
     toast.info("Dados Cadastrais", {
-      description: `Nome: ${user.name}\nEmail: ${user.email}\nCPF: ${user.cpf || 'Não informado'}`,
+      description: `Nome: ${user.nome}\nEmail: ${user.email}\nCPF: ${user.cpf || 'Não informado'}`,
       duration: 5000,
     });
   };
@@ -49,10 +49,10 @@ export function Profile({ onLogout }: ProfileProps) {
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
           <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-white/20 shadow-xl">
             <AvatarFallback className="bg-white/20 text-primary-foreground text-2xl font-bold">
-              {user.name.substring(0, 2).toUpperCase()}
+              {user.nome.substring(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <h2 className="mb-2 text-2xl font-bold">{user.name}</h2>
+          <h2 className="mb-2 text-2xl font-bold">{user.nome}</h2>
           <Badge className="bg-white/20 text-primary-foreground border-0 mb-3 px-3 py-1 backdrop-blur-sm">
             Iniciante
           </Badge>
@@ -74,7 +74,7 @@ export function Profile({ onLogout }: ProfileProps) {
 
           <Card className="shadow-md border-none">
             <CardContent className="p-4 text-center">
-              <div className="text-3xl font-bold mb-1 text-secondary-foreground">{user.balance}</div>
+              <div className="text-3xl font-bold mb-1 text-secondary-foreground">{(user as any).saldo_pontos}</div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Capivaras</p>
             </CardContent>
           </Card>

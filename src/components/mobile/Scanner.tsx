@@ -10,8 +10,10 @@ import { QrScannerComponent } from './QrScannerComponent';
 import { useUser } from '../../contexts/UserContext';
 import { registrarDescarte } from '../../services/dataService';
 
+type Screen = 'home' | 'scanner' | 'history' | 'wallet' | 'rewards' | 'penalties' | 'map' | 'profile';
+
 interface ScannerProps {
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: Screen) => void;
 }
 
 type Step = 'scan_qr' | 'take_photo' | 'analyzing' | 'result';
@@ -31,8 +33,8 @@ export function Scanner({ onNavigate }: ScannerProps) {
     const userStr = localStorage.getItem('recife_sustentavel_session');
     if (userStr) {
       const session = JSON.parse(userStr);
-      // Verifica last_disposal_time do Neon
-      const { allowed, timeLeft } = checkTimeLimit(session.user.last_disposal_time ? new Date(session.user.last_disposal_time).getTime() : null);
+      // Verifica ultimo_descarte do Neon
+      const { allowed, timeLeft } = checkTimeLimit(session.user.ultimo_descarte ? new Date(session.user.ultimo_descarte).getTime() : null);
 
       if (!allowed) {
         toast.error(`Limite diário atingido! Volte em ${timeLeft}.`);
@@ -69,8 +71,8 @@ export function Scanner({ onNavigate }: ScannerProps) {
 
   const handleSave = async (multiplier: number, imageSrc: string) => {
     setSaving(true);
-    // CORREÇÃO: Passando os 3 argumentos exigidos
-    const res = await registrarDescarte(binData?.type || 'GERAL', multiplier, imageSrc);
+    // CORREÇÃO: enviar payload object esperado por registrarDescarte
+    const res = await registrarDescarte({ type: binData?.type || 'GERAL', imageBase64: imageSrc, multiplier });
     
     if (res.success) {
       toast.success(`+${res.points} Capivaras! Saldo atualizado.`);

@@ -10,7 +10,7 @@ import { Plus, Edit, Trash2, Search, Gift, Film, Bus, ShoppingBag, Ticket, Credi
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 const rewards = [
   { id: 1, title: 'Vale Cinema', description: 'Ingresso grátis em salas 2D', value: 50, partner: 'Cinépolis', validity: '31/12/2025', type: 'evento', status: 'ativo', icon: Film },

@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Download, Calendar, TrendingUp, Users, Trash2, Gift, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 const disposalsOverTime = [
   { month: 'Jun', descartes: 3200, validos: 2880, invalidos: 320 },

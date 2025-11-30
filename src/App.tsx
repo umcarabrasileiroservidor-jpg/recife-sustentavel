@@ -12,6 +12,7 @@ export interface UserData {
   email: string;
   phone: string;
   cpf: string;
+  saldo_pontos?: number;
 }
 
 export default function App() {

@@ -10,7 +10,7 @@ import { Plus, Search, AlertTriangle, Ban, XCircle, Eye } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 
 const penalties = [

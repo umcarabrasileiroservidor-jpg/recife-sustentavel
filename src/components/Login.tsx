@@ -30,10 +30,10 @@ export function Login({ onLogin }: LoginProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, senha: password })
       });
 
       const data = await res.json();
@@ -43,19 +43,20 @@ export function Login({ onLogin }: LoginProps) {
       // Salva a sessão
       localStorage.setItem('recife_sustentavel_session', JSON.stringify({
         token: data.token,
-        user: data.user
+        user: data.usuario
       }));
 
       // Adapta para o App
       const appUser: UserData = {
         id: 0, // ID numérico legado, pode ignorar
-        name: data.user.name,
-        email: data.user.email,
-        phone: data.user.phone || '',
-        cpf: data.user.cpf
+        name: data.usuario.nome,
+        email: data.usuario.email,
+        phone: data.usuario.telefone || '',
+        cpf: data.usuario.cpf,
+        saldo_pontos: data.usuario.saldo_pontos
       };
 
-      toast.success(`Bem-vindo, ${data.user.name}!`);
+      toast.success(`Bem-vindo, ${data.usuario.nome}!`);
       onLogin(appUser, false);
 
     } catch (error: any) {
@@ -71,10 +72,10 @@ export function Login({ onLogin }: LoginProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/signup', {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, cpf, phone })
+        body: JSON.stringify({ nome: name, email, senha: password, cpf, telefone: phone })
       });
 
       const data = await res.json();

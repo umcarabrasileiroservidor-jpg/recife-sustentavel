@@ -177,9 +177,12 @@ export interface UserProfile {
   email: string;
   cpf?: string;
   telefone?: string;
-  saldo_pontos: number;
+  saldo_pontos: number;      // Campo do banco de dados (português)
+  balance?: number;          // Fallback para compatibilidade com front (visualização)
   nivel_usuario?: string;
+  level?: string;            // Fallback para compatibilidade
   ultimo_descarte?: string | null;
+  last_disposal_time?: string; // Fallback
   total_descartes?: number;
 }
 

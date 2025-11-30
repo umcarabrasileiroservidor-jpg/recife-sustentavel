@@ -29,7 +29,7 @@ import type { SignOptions } from 'jsonwebtoken';
  * ⚠️ NUNCA comita esta chave no GitHub!
  * ⚠️ Em produção, deve ser gerado randomicamente (ex: 256 bits de entropia)
  */
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || "segredo-super-secreto-do-projeto-recife-2025";
 
 /**
  * INTERFACE: TokenPayload

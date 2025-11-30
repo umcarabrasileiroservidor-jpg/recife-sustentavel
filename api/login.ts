@@ -1,13 +1,20 @@
-import pool from '../src/lib/db';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
+import pool from './db';
+import { compararSenha, gerarToken } from './auth';
 
 export default async function handler(req: any, res: any) {
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { email, senha } = req.body || {};
+  let requestBody = req.body;
+  if (typeof requestBody === 'string') {
+    try { requestBody = JSON.parse(requestBody); } catch (e) { return res.status(400).json({ error: 'Body JSON inválido' }); }
+  }
+  const { email, senha } = requestBody || {};
   if (!email || !senha) return res.status(400).json({ error: 'email e senha são obrigatórios' });
 
   try {
@@ -15,10 +22,10 @@ export default async function handler(req: any, res: any) {
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    const ok = await bcrypt.compare(senha, user.senha_hash);
+    const ok = await compararSenha(senha, user.senha_hash);
     if (!ok) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = gerarToken(user.id, user.email);
 
     // Remover senha_hash antes de retornar
     delete user.senha_hash;

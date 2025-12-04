@@ -2,24 +2,27 @@ import pool from './db';
 import { verificarToken, extrairTokenDoHeader } from './auth';
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const authHeader = req.headers?.authorization || '';
-    const token = extrairTokenDoHeader(authHeader);
+    const token = extrairTokenDoHeader(req.headers.authorization);
     if (!token) return res.status(401).json({ error: 'Token ausente' });
 
     const payload = verificarToken(token);
     if (!payload) return res.status(401).json({ error: 'Token inválido' });
-    const userId = payload.userId;
 
-    const result = await pool.query('SELECT id, nome, email, cpf, telefone, saldo_pontos FROM usuarios WHERE id = $1', [userId]);
-    const user = result.rows[0];
-    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    const result = await pool.query('SELECT id, nome, email, cpf, telefone, saldo_pontos, nivel_usuario, is_admin FROM usuarios WHERE id = $1', [payload.userId]);
+    
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
 
-    return res.status(200).json({ user });
+    return res.status(200).json({ user: result.rows[0] });
   } catch (err) {
-    console.error('me error', err);
-    return res.status(500).json({ error: 'Erro interno ao obter perfil' });
+    console.error(err);
+    return res.status(500).json({ error: 'Erro interno' });
   }
 }

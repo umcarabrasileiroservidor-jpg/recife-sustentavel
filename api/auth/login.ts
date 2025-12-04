@@ -1,5 +1,5 @@
-import pool from '../db';
-import { compararSenha, gerarToken } from '../auth';
+import pool from '../db'; 
+import { compararSenha, gerarToken } from '../auth'; 
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -10,30 +10,43 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  let requestBody = req.body;
+  if (typeof requestBody === 'string') {
+    try { requestBody = JSON.parse(requestBody); } catch (e) { return res.status(400).json({ error: 'Body JSON inválido' }); }
+  }
+  const { email, senha } = requestBody || {};
+  if (!email || !senha) return res.status(400).json({ error: 'email e senha são obrigatórios' });
+
   try {
-    let requestBody = req.body;
-    if (typeof requestBody === 'string') {
-      try { requestBody = JSON.parse(requestBody); } catch (e) { return res.status(400).json({ error: 'Body JSON inválido' }); }
-    }
+    // Busca usuário
+    const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+    const userDb = result.rows[0];
+    
+    if (!userDb) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    const { email, senha } = requestBody || {};
-    if (!email || !senha) return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+    const ok = await compararSenha(senha, userDb.senha_hash);
+    if (!ok) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    const result = await pool.query(
-      `SELECT id, nome, email, senha_hash, cpf, telefone, saldo_pontos, nivel_usuario FROM usuarios WHERE email = $1`,
-      [email]
-    );
+    const token = gerarToken(userDb.id, userDb.email);
+    delete userDb.senha_hash;
 
-    if (result.rows.length === 0) return res.status(401).json({ error: 'Email ou senha inválidos' });
-    const usuario = result.rows[0];
-
-    const senhaValida = await compararSenha(senha, usuario.senha_hash);
-    if (!senhaValida) return res.status(401).json({ error: 'Email ou senha inválidos' });
-
-    const token = gerarToken(usuario.id, usuario.email);
-    return res.status(200).json({ success: true, token, usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, cpf: usuario.cpf, telefone: usuario.telefone, saldo_pontos: usuario.saldo_pontos, nivel_usuario: usuario.nivel_usuario } });
-  } catch (error: any) {
-    console.error('Erro ao fazer login:', error);
-    return res.status(500).json({ error: error.message || 'Erro interno' });
+    // CORREÇÃO: Retorna 'usuario' para bater com o Frontend
+    return res.status(200).json({ 
+      success: true, 
+      token, 
+      usuario: {
+        id: userDb.id,
+        nome: userDb.nome,
+        email: userDb.email,
+        cpf: userDb.cpf,
+        telefone: userDb.telefone,
+        saldo_pontos: userDb.saldo_pontos,
+        nivel_usuario: userDb.nivel_usuario,
+        is_admin: userDb.is_admin
+      }
+    });
+  } catch (err) {
+    console.error('login error', err);
+    return res.status(500).json({ error: 'Erro interno ao autenticar' });
   }
 }

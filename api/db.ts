@@ -1,13 +1,23 @@
 import { Pool } from '@neondatabase/serverless';
+import dotenv from 'dotenv';
+import path from 'path';
 
-const connectionString = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL || process.env.NEON_POSTGRESQL_CONNECTION_STRING;
-if (!connectionString) {
-  throw new Error('Database connection string not provided. Set NEON_DATABASE_URL or DATABASE_URL.');
+// FORÇA a leitura do arquivo .env.local
+try {
+  dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+} catch (e) {
+  console.log("Aviso: Não foi possível carregar .env.local (normal em produção)");
 }
 
-const pool = new Pool({
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("❌ ERRO FATAL: DATABASE_URL não encontrada!");
+}
+
+const pool = new Pool({ 
   connectionString,
-  ssl: true,
+  ssl: true 
 });
 
 export default pool;

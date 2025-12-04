@@ -16,14 +16,21 @@ interface MobileAppProps {
   onLogout: () => void;
 }
 
+// Define o tipo localmente para garantir compatibilidade
 type Screen = 'home' | 'scanner' | 'history' | 'wallet' | 'rewards' | 'penalties' | 'map' | 'profile';
 
 export function MobileApp({ userData, onLogout }: MobileAppProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
 
+  // --- CORREÇÃO: Wrapper para satisfazer o TypeScript ---
+  // Transforma a função de Dispatch do React em uma função simples (string) => void
+  const handleNavigate = (screen: any) => {
+    setCurrentScreen(screen as Screen);
+  };
+
   const screens = {
-    home: <Home userData={userData} onNavigate={setCurrentScreen} />,
-    scanner: <Scanner onNavigate={setCurrentScreen} />,
+    home: <Home userData={userData} onNavigate={handleNavigate} />,
+    scanner: <Scanner onNavigate={handleNavigate} />,
     history: <History />,
     wallet: <Wallet />,
     rewards: <Rewards />,

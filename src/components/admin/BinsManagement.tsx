@@ -1,233 +1,111 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
-import { MapPin, Search, Filter, Plus, Edit, Trash2, CheckCircle, AlertCircle, Activity } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { getAdminBins, createAdminBin, deleteAdminBin, updateAdminBin } from '../../services/dataService';
 import { toast } from 'sonner';
 
-const bins = [
-  { id: 1, location: 'Praça do Derby', type: 'reciclavel', status: 'ativa', capacity: 75, lat: -8.0522, lng: -34.8956, lastValidation: '23/10/2025 14:30' },
-  { id: 2, location: 'Parque da Jaqueira', type: 'organico', status: 'ativa', capacity: 45, lat: -8.0389, lng: -34.8989, lastValidation: '23/10/2025 12:15' },
-  { id: 3, location: 'Shopping Recife', type: 'eletronico', status: 'ativa', capacity: 30, lat: -8.1194, lng: -34.9050, lastValidation: '23/10/2025 10:00' },
-  { id: 4, location: 'Boa Viagem', type: 'reciclavel', status: 'cheia', capacity: 95, lat: -8.1277, lng: -34.8948, lastValidation: '23/10/2025 08:30' },
-  { id: 5, location: 'Casa Forte', type: 'metal', status: 'ativa', capacity: 60, lat: -8.0265, lng: -34.9264, lastValidation: '23/10/2025 09:45' },
-  { id: 6, location: 'Pina', type: 'vidro', status: 'offline', capacity: 0, lat: -8.0889, lng: -34.8756, lastValidation: '22/10/2025 16:20' },
-  { id: 7, location: 'Torre', type: 'reciclavel', status: 'manutencao', capacity: 0, lat: -8.0489, lng: -34.8776, lastValidation: '21/10/2025 14:00' },
-];
-
-const statusConfig: Record<string, { label: string; icon: any; variant: any; color: string }> = {
-  ativa: { label: 'Ativa', icon: CheckCircle, variant: 'default', color: 'text-primary' },
-  offline: { label: 'Offline', icon: AlertCircle, variant: 'secondary', color: 'text-muted-foreground' },
-  cheia: { label: 'Cheia', icon: AlertCircle, variant: 'destructive', color: 'text-destructive' },
-  manutencao: { label: 'Manutenção', icon: Activity, variant: 'outline', color: 'text-accent' },
-};
-
-const typeLabels: Record<string, string> = {
-  organico: 'Orgânico',
-  reciclavel: 'Reciclável',
-  eletronico: 'Eletrônico',
-  metal: 'Metal',
-  vidro: 'Vidro',
-};
-
 export function BinsManagement() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [bins, setBins] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [formData, setFormData] = useState<any>({ location: '', lat: '', lng: '', type: 'reciclavel', status: 'ativa' });
+  const [isEditing, setIsEditing] = useState(false);
 
-  const filteredBins = bins.filter((bin) => {
-    const matchesSearch = bin.location.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || bin.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleAddBin = () => {
-    toast.success('Lixeira adicionada com sucesso!');
-    setShowAddDialog(false);
+  const load = () => {
+    setLoading(true);
+    getAdminBins().then(setBins).finally(() => setLoading(false));
   };
+  
+  useEffect(() => { load(); }, []);
+
+  const handleSave = async () => {
+    const payload = { ...formData, lat: parseFloat(formData.lat), lng: parseFloat(formData.lng) };
+    const success = isEditing ? await updateAdminBin(payload) : await createAdminBin(payload);
+    
+    if (success) {
+      toast.success(isEditing ? 'Atualizado!' : 'Criado!');
+      setShowDialog(false);
+      load();
+    } else {
+      toast.error('Erro ao salvar');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Tem certeza?')) {
+      const success = await deleteAdminBin(id);
+      if (success) { toast.success('Excluído!'); load(); }
+    }
+  };
+
+  const openEdit = (bin: any) => {
+    setFormData(bin);
+    setIsEditing(true);
+    setShowDialog(true);
+  };
+
+  const openCreate = () => {
+    setFormData({ location: '', lat: '', lng: '', type: 'reciclavel', status: 'ativa' });
+    setIsEditing(false);
+    setShowDialog(true);
+  };
+
+  if (loading) return <div className="p-6 text-center"><Loader2 className="animate-spin mx-auto"/> Carregando lixeiras...</div>;
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px]">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2>Gerenciamento de Lixeiras</h2>
-          <p className="text-muted-foreground">{bins.length} lixeiras cadastradas</p>
-        </div>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova lixeira
-            </Button>
-          </DialogTrigger>
+      <div className="flex justify-between items-center">
+        <h2>Lixeiras</h2>
+        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <DialogTrigger asChild><Button onClick={openCreate}><Plus className="mr-2 h-4 w-4"/> Nova Lixeira</Button></DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Adicionar nova lixeira</DialogTitle>
-              <DialogDescription>Cadastre uma nova lixeira inteligente no sistema</DialogDescription>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>{isEditing ? 'Editar' : 'Nova'} Lixeira</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Localização</Label>
-                <Input placeholder="Ex: Praça do Derby" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Latitude</Label>
-                  <Input placeholder="-8.0522" />
+                <div className="space-y-2"><Label>Local</Label><Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2"><Label>Lat</Label><Input value={formData.lat} onChange={e=>setFormData({...formData, lat: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Lng</Label><Input value={formData.lng} onChange={e=>setFormData({...formData, lng: e.target.value})} /></div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Longitude</Label>
-                  <Input placeholder="-34.8956" />
+                <div className="space-y-2"><Label>Tipo</Label>
+                    <Select value={formData.type} onValueChange={v=>setFormData({...formData, type: v})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="reciclavel">Reciclável</SelectItem>
+                            <SelectItem value="organico">Orgânico</SelectItem>
+                            <SelectItem value="eletronico">Eletrônico</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo de resíduo</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="organico">Orgânico</SelectItem>
-                    <SelectItem value="reciclavel">Reciclável</SelectItem>
-                    <SelectItem value="eletronico">Eletrônico</SelectItem>
-                    <SelectItem value="metal">Metal</SelectItem>
-                    <SelectItem value="vidro">Vidro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Capacidade máxima (litros)</Label>
-                <Input type="number" placeholder="100" />
-              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancelar</Button>
-              <Button onClick={handleAddBin}>Adicionar</Button>
-            </DialogFooter>
+            <DialogFooter><Button onClick={handleSave}>Salvar</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por localização..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="ativa">Ativa</SelectItem>
-                <SelectItem value="offline">Offline</SelectItem>
-                <SelectItem value="cheia">Cheia</SelectItem>
-                <SelectItem value="manutencao">Manutenção</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl mb-1">{bins.filter(b => b.status === 'ativa').length}</div>
-            <p className="text-sm text-muted-foreground">Ativas</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl mb-1">{bins.filter(b => b.status === 'cheia').length}</div>
-            <p className="text-sm text-muted-foreground">Cheias</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl mb-1">{bins.filter(b => b.status === 'offline').length}</div>
-            <p className="text-sm text-muted-foreground">Offline</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl mb-1">{bins.filter(b => b.status === 'manutencao').length}</div>
-            <p className="text-sm text-muted-foreground">Manutenção</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Localização</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Capacidade</TableHead>
-                <TableHead>Última validação</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
+            <TableHeader><TableRow><TableHead>Local</TableHead><TableHead>Lat/Lng</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
             <TableBody>
-              {filteredBins.map((bin, index) => {
-                const statusInfo = statusConfig[bin.status];
-                const StatusIcon = statusInfo.icon;
-
-                return (
-                  <motion.tr
-                    key={bin.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span>{bin.location}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{typeLabels[bin.type]}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusInfo.variant as any} className="gap-1">
-                        <StatusIcon className="w-3 h-3" />
-                        {statusInfo.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {bin.status === 'ativa' || bin.status === 'cheia' ? `${bin.capacity}%` : '—'}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{bin.lastValidation}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </motion.tr>
-                );
-              })}
+              {bins.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-4">Nenhuma lixeira cadastrada.</TableCell></TableRow>}
+              {bins.map((bin) => (
+                <TableRow key={bin.id}>
+                  <TableCell><div className="flex items-center gap-2"><MapPin className="w-4 h-4"/> {bin.location}</div></TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{bin.lat}, {bin.lng}</TableCell>
+                  <TableCell><Badge variant={bin.status === 'ativa' ? 'default' : 'destructive'}>{bin.status}</Badge></TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(bin)}><Edit className="w-4 h-4"/></Button>
+                    <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDelete(bin.id)}><Trash2 className="w-4 h-4"/></Button>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>

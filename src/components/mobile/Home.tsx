@@ -2,38 +2,35 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { ScanLine, Map, TrendingUp, Trash2, Award, Lock, Gift, Loader2 } from 'lucide-react';
-import { Badge } from '../ui/badge';
-import { useUser } from '../../contexts/UserContext'; // Contexto Global
-import { checkTimeLimit } from '../../utils/timeUtils'; // Utilitário de tempo
+import { ScanLine, Gift, Loader2, Leaf, Map, Lock } from 'lucide-react';
+import { useUser } from '../../contexts/UserContext';
+import { checkTimeLimit } from '../../utils/timeUtils';
+import { getDashboardData } from '../../services/dataService';
 import { WeeklyGoal } from './WeeklyGoal';
+import { HomeMap } from './HomeMap';
 import { toast } from 'sonner';
 
-type Screen = 'home' | 'scanner' | 'history' | 'wallet' | 'rewards' | 'penalties' | 'map' | 'profile';
-
-interface HomeProps {
-  userData: any; // Mantido por compatibilidade
-  onNavigate: (screen: Screen) => void;
-}
-
-export function Home({ onNavigate }: HomeProps) {
-  const { user, loading, refreshUser } = useUser();
+export function Home({ onNavigate }: any) {
+  const { user, loading } = useUser();
   const [availability, setAvailability] = useState({ allowed: true, timeLeft: '' });
+  const [weeklyCount, setWeeklyCount] = useState(0);
 
-  // Verifica o tempo a cada minuto
   useEffect(() => {
-    const check = () => {
-      // Tenta pegar o timestamp do localStorage se o usuário do contexto não tiver atualizado ainda
-      const localUser = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}').user;
-      const lastTime = user?.ultimo_descarte || localUser?.ultimo_descarte;
-      
-      const status = checkTimeLimit(lastTime ? new Date(lastTime).getTime() : null);
-      setAvailability(status);
-    };
+    if (user) {
+      getDashboardData().then((data: any) => {
+        if (data) setWeeklyCount(data.weeklyProgress);
+      });
 
-    check();
-    const interval = setInterval(check, 60000);
-    return () => clearInterval(interval);
+      const check = () => {
+        const lastTime = user.ultimo_descarte;
+        const status = checkTimeLimit(lastTime ? new Date(lastTime).getTime() : null);
+        setAvailability(status);
+      };
+      
+      check();
+      const interval = setInterval(check, 60000);
+      return () => clearInterval(interval);
+    }
   }, [user]);
 
   const handleScanClick = () => {
@@ -44,150 +41,138 @@ export function Home({ onNavigate }: HomeProps) {
     onNavigate('scanner');
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
-    );
-  }
-
-  // Fallback se não tiver usuário logado
+  if (loading) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-green-600 w-8 h-8" /></div>;
+  
   if (!user) {
     return (
-      <div className="p-8 text-center flex flex-col items-center justify-center h-screen">
-        <p>Sessão expirada.</p>
-        <Button onClick={() => window.location.reload()} className="mt-4">Recarregar</Button>
+      <div className="p-8 text-center flex flex-col items-center justify-center h-screen bg-white">
+        <p className="text-gray-800 mb-4">Sessão expirada.</p>
+        <Button onClick={() => window.location.reload()} className="bg-green-600 text-white">Recarregar</Button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-primary/5 to-background pb-24">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground p-6 pb-8 rounded-b-3xl shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+    <div className="min-h-full pb-24" style={{ backgroundColor: '#f8fafc' }}> {/* Fundo cinza claro */}
+      
+      {/* HEADER VERDE ESCURO */}
+      <div 
+        className="pt-8 pb-12 px-6 rounded-b-[2.5rem] shadow-xl relative overflow-hidden"
+        style={{ backgroundColor: '#2E8B57', color: 'white' }}
+      >
+        {/* Bolha decorativa */}
+        <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white opacity-10 rounded-full blur-3xl" />
         
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10">
-          <p className="opacity-90 text-sm font-medium">Bem-vindo(a) de volta,</p>
-          <h1 className="text-3xl font-bold mt-1">{(user as any).nome.split(' ')[0]}! 👋</h1>
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 flex justify-between items-center">
+          <div>
+            <p className="text-sm font-medium" style={{ color: '#d1fae5' }}>Olá, {user.nome?.split(' ')[0]}!</p>
+            <h1 className="text-3xl font-bold mt-0.5 text-white">Vamos reciclar? 🌿</h1>
+          </div>
+          <div className="p-2 rounded-full backdrop-blur-md border border-white/20" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+            <Leaf className="w-6 h-6 text-white" />
+          </div>
         </motion.div>
 
-        {/* Card de Saldo */}
+        {/* CARD DE SALDO (Branco Translúcido) */}
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }} 
-          animate={{ opacity: 1, scale: 1 }} 
-          transition={{ delay: 0.1 }}
-          className="relative z-10"
+          initial={{ scale: 0.95, opacity: 0 }} 
+          animate={{ scale: 1, opacity: 1 }} 
+          className="mt-8"
         >
-          <Card className="mt-6 bg-white/10 border-white/20 backdrop-blur-md shadow-xl">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-primary-foreground/80 text-xs uppercase tracking-wider mb-1 font-semibold">Seu Saldo</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-bold tracking-tight">{(user as any).saldo_pontos}</span>
-                    <span className="text-2xl opacity-90">🌿</span>
-                  </div>
-                </div>
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  onClick={() => onNavigate('rewards')}
-                  className="bg-white text-primary hover:bg-white/90 border-0 font-bold shadow-lg h-10 px-4"
-                >
-                  <Gift className="w-4 h-4 mr-2" />
-                  Trocar
-                </Button>
+          <div 
+            className="rounded-xl p-5 flex justify-between items-center shadow-lg backdrop-blur-md border border-white/20"
+            style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'white' }}
+          >
+            <div>
+              <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#d1fae5' }}>Seu Saldo</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-bold text-white">{user.saldo_pontos}</span>
+                <span className="text-lg opacity-80 text-white">pts</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <button 
+              onClick={() => onNavigate('rewards')}
+              className="font-bold h-10 px-5 shadow-lg rounded-xl flex items-center gap-2 hover:scale-105 transition-transform"
+              style={{ backgroundColor: 'white', color: '#2E8B57', border: 'none' }}
+            >
+              <Gift className="w-4 h-4" />
+              Trocar
+            </button>
+          </div>
         </motion.div>
       </div>
 
-      <div className="p-6 space-y-6 -mt-2 relative z-20">
+      {/* CONTEÚDO PRINCIPAL */}
+      <div className="px-6 -mt-6 relative z-20 space-y-6">
         
-        {/* Meta Semanal (Mock visual por enquanto, já que migramos o banco) */}
+        {/* Botão Scanner (Grande) */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={handleScanClick}
+          disabled={!availability.allowed}
+          className="w-full h-24 rounded-3xl shadow-lg flex items-center justify-between px-8 transition-all"
+          style={{ 
+            backgroundColor: availability.allowed ? 'white' : '#f3f4f6',
+            color: availability.allowed ? '#2E8B57' : '#9ca3af',
+            cursor: availability.allowed ? 'pointer' : 'not-allowed',
+            border: availability.allowed ? '2px solid rgba(46, 139, 87, 0.1)' : 'none'
+          }}
+        >
+          <div className="text-left">
+            <h3 className="text-xl font-bold" style={{ color: availability.allowed ? '#1f2937' : '#9ca3af' }}>
+              {availability.allowed ? 'Escanear Lixo' : 'Volte Amanhã'}
+            </h3>
+            <p className="text-xs" style={{ color: availability.allowed ? '#4b5563' : '#9ca3af' }}>
+              {availability.allowed ? 'Ganhe pontos agora' : `Disponível em ${availability.timeLeft}`}
+            </p>
+          </div>
+          <div 
+            className="p-4 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: availability.allowed ? '#ecfdf5' : '#e5e7eb' }}
+          >
+            {availability.allowed ? <ScanLine className="w-8 h-8 text-green-600" /> : <Lock className="w-8 h-8 text-gray-400" />}
+          </div>
+        </motion.button>
+
+        {/* Meta Semanal */}
         <WeeklyGoal 
-          currentProgress={1} 
+          currentProgress={weeklyCount} 
           goalTarget={3} 
           hasDiscardedToday={!availability.allowed} 
         />
 
-        {/* Ações Rápidas */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <div className="grid grid-cols-2 gap-4">
-            <Button
-              onClick={handleScanClick}
-              disabled={!availability.allowed}
-              className={`h-32 flex-col gap-3 rounded-2xl shadow-md transition-all border-0 ${
-                !availability.allowed 
-                  ? 'bg-muted text-muted-foreground' 
-                  : 'bg-primary hover:bg-primary/90 hover:scale-[1.02] hover:shadow-xl'
-              }`}
+        {/* Mapa */}
+        <div>
+          <div className="flex justify-between items-end mb-3">
+            <h3 className="font-bold text-lg" style={{ color: '#334155' }}>Pontos Próximos</h3>
+            <button 
+              onClick={() => onNavigate('map')} 
+              className="text-xs font-bold hover:underline"
+              style={{ color: '#2E8B57' }}
             >
-              {availability.allowed ? (
-                <>
-                  <div className="p-4 bg-white/20 rounded-full"><ScanLine className="w-8 h-8" /></div>
-                  <span className="font-bold text-lg">Escanear</span>
-                </>
-              ) : (
-                <>
-                  <div className="p-3 bg-zinc-200/50 rounded-full"><Lock className="w-6 h-6" /></div>
-                  <div className="text-center">
-                    <span className="font-bold block text-xs uppercase tracking-wide mb-1">Volte em</span>
-                    <span className="text-base font-mono font-bold">{availability.timeLeft}</span>
-                  </div>
-                </>
-              )}
-            </Button>
-
-            <Button
-              onClick={() => onNavigate('map')}
-              variant="outline"
-              className="h-32 flex-col gap-3 bg-card hover:bg-accent/5 border-2 border-primary/5 rounded-2xl shadow-sm hover:scale-[1.02] transition-all"
-            >
-              <div className="p-4 bg-primary/10 text-primary rounded-full"><Map className="w-8 h-8" /></div>
-              <span className="font-bold text-lg text-foreground">Lixeiras</span>
-            </Button>
+              Ver mapa completo
+            </button>
           </div>
-        </motion.div>
-
-        {/* Estatísticas */}
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="border-none shadow-sm bg-card overflow-hidden">
-            <CardContent className="p-3 text-center relative">
-              <div className="absolute top-0 left-0 w-full h-1 bg-blue-500/50" />
-              <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 bg-blue-500/10 text-blue-600">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-              <div className="font-bold text-lg leading-none mb-1">--</div>
-              <p className="text-[10px] text-muted-foreground uppercase font-medium">Semana</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-sm bg-card overflow-hidden">
-            <CardContent className="p-3 text-center relative">
-              <div className="absolute top-0 left-0 w-full h-1 bg-green-500/50" />
-              <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 bg-green-500/10 text-green-600">
-                <Trash2 className="w-4 h-4" />
-              </div>
-              <div className="font-bold text-lg leading-none mb-1">--</div>
-              <p className="text-[10px] text-muted-foreground uppercase font-medium">Total</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-sm bg-card overflow-hidden">
-            <CardContent className="p-3 text-center relative">
-              <div className="absolute top-0 left-0 w-full h-1 bg-amber-500/50" />
-              <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 bg-amber-500/10 text-amber-600">
-                <Award className="w-4 h-4" />
-              </div>
-              <div className="font-bold text-sm leading-none mb-1 truncate pt-1">Iniciante</div>
-              <p className="text-[10px] text-muted-foreground uppercase font-medium">Nível</p>
-            </CardContent>
-          </Card>
+          
+          {/* Container do Mapa */}
+          <div className="h-48 w-full rounded-2xl overflow-hidden shadow-md border border-gray-200 relative z-0 bg-white">
+             <HomeMap />
+          </div>
         </div>
+
+        {/* Card de Impacto (Verde Gradiente) */}
+        <div 
+          className="rounded-xl p-5 flex items-center justify-between shadow-lg mb-8 text-white"
+          style={{ background: 'linear-gradient(to right, #2E8B57, #059669)' }}
+        >
+          <div>
+            <p className="font-bold text-lg">Seu Impacto</p>
+            <p className="text-xs opacity-90">Você já evitou 2.5kg de CO₂</p>
+          </div>
+          <Leaf className="w-10 h-10 text-white opacity-30" />
+        </div>
+
+        <div className="h-4" />
       </div>
     </div>
   );

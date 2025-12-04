@@ -5,15 +5,28 @@ import { UsersManagement } from './admin/UsersManagement';
 import { RewardsManagement } from './admin/RewardsManagement';
 import { PenaltiesManagement } from './admin/PenaltiesManagement';
 import { Reports } from './admin/Reports';
+import { Auditoria } from './admin/Auditoria'; // <--- IMPORTAÇÃO NOVA
 import { Button } from './ui/button';
-import { LayoutDashboard, Trash2, Users, Gift, AlertTriangle, BarChart3, LogOut, Menu, X } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  Trash2, 
+  Users, 
+  Gift, 
+  AlertTriangle, 
+  BarChart3, 
+  LogOut, 
+  Menu, 
+  X, 
+  CheckSquare // <--- ÍCONE NOVO
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AdminPanelProps {
   onLogout: () => void;
 }
 
-type Screen = 'dashboard' | 'bins' | 'users' | 'rewards' | 'penalties' | 'reports';
+// Adicionado 'auditoria' ao tipo
+type Screen = 'dashboard' | 'bins' | 'users' | 'rewards' | 'penalties' | 'reports' | 'auditoria';
 
 export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
@@ -21,6 +34,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
 
   const screens = {
     dashboard: <Dashboard />,
+    auditoria: <Auditoria />, // <--- TELA NOVA CONECTADA
     bins: <BinsManagement />,
     users: <UsersManagement />,
     rewards: <RewardsManagement />,
@@ -30,6 +44,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
 
   const menuItems = [
     { id: 'dashboard' as Screen, icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'auditoria' as Screen, icon: CheckSquare, label: 'Auditoria' }, // <--- MENU NOVO (Destaque no topo)
     { id: 'bins' as Screen, icon: Trash2, label: 'Lixeiras' },
     { id: 'users' as Screen, icon: Users, label: 'Usuários' },
     { id: 'rewards' as Screen, icon: Gift, label: 'Recompensas' },
@@ -52,11 +67,11 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             {/* Logo */}
             <div className="p-6 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-xl">🌿</span>
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
+                  RS
                 </div>
                 <div>
-                  <h3 className="text-primary">Admin Panel</h3>
+                  <h3 className="text-primary font-bold">Admin</h3>
                   <p className="text-xs text-muted-foreground">Recife Sustentável</p>
                 </div>
               </div>
@@ -111,7 +126,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           >
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
-          <h2 className="flex-1">
+          <h2 className="flex-1 text-lg font-semibold">
             {menuItems.find((item) => item.id === currentScreen)?.label}
           </h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -121,7 +136,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-slate-50/50">
           {screens[currentScreen]}
         </main>
       </div>

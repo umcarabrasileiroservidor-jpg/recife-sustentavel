@@ -1,5 +1,7 @@
 import { toast } from "sonner";
 
+
+
 export interface UserProfile {
   id: string;
   nome: string;
@@ -63,7 +65,7 @@ export async function getCurrentUserProfile() {
   try {
     const res = await apiRequest('/api/me');
     if (res?.user) {
-      // Sucesso: Atualiza os dados
+      // Sucesso: Atualiza os dados mantendo o token
       session.user = { ...session.user, ...res.user };
       localStorage.setItem('recife_sustentavel_session', JSON.stringify(session));
     }
@@ -74,7 +76,7 @@ export async function getCurrentUserProfile() {
       localStorage.removeItem('recife_sustentavel_session');
       return null;
     }
-    // Se for outro erro (rede, server down), mantém a sessão local para não chutar o usuário
+    // Se for outro erro (rede, server down), mantém a sessão local
     console.log("Usando cache local devido a erro momentâneo");
   }
 
@@ -112,12 +114,11 @@ export async function resgatarRecompensa(custo: number, titulo: string) {
 }
 
 // --- LEITURA ---
-export const getLixeiras = () => apiRequest('/api/lixeiras').then(r => r || []);
-export const getRecompensas = () => apiRequest('/api/recompensas-lista').then(r => r || []);
-export const getTransacoes = () => apiRequest('/api/transacoes').then(r => r || []);
-export const getHistorico = () => apiRequest('/api/historico').then(r => r || []);
-export const getPenalidades = () => apiRequest('/api/penalidades').then(r => r || []);
-export const getAuditoriaPendentes = () => apiRequest('/api/admin/auditoria').then(r => r || []);
+export const getLixeiras = () => apiRequest('/api/user-api?type=lixeiras').then(r => r || []);
+export const getRecompensas = () => apiRequest('/api/user-api?type=recompensas').then(r => r || []);
+export const getTransacoes = () => apiRequest('/api/user-api?type=transacoes').then(r => r || []);
+export const getHistorico = () => apiRequest('/api/user-api?type=historico').then(r => r || []);
+export const getPenalidades = () => apiRequest('/api/user-api?type=penalidades').then(r => r || []);
 
 export const getDashboardData = async () => {
   const hist = await getHistorico();
@@ -126,8 +127,6 @@ export const getDashboardData = async () => {
   startOfWeek.setHours(0,0,0,0);
   return { weeklyProgress: hist.filter((d: any) => new Date(d.criado_em) >= startOfWeek).length };
 };
-
-// --- ADMIN (CORRIGIDO: DELETE VIA URL) ---
 
 // --- ADMIN (CONSOLIDADO) ---
 
@@ -157,7 +156,7 @@ export const createAdminPenalty = (data: any) => apiRequest('/api/admin-api?type
 export const deleteAdminPenalty = (id: string) => apiRequest(`/api/admin-api?type=penalties&id=${id}`, 'DELETE');
 
 // Auditoria
-
+export const getAuditoriaPendentes = () => apiRequest('/api/admin-api?type=auditoria').then(r => r || []);
 export const processarAuditoria = (id: string, status: string, pontos: number) => apiRequest('/api/admin-api?type=auditoria', 'POST', { id, status, pontos });
 
 // Relatórios

@@ -102,6 +102,7 @@ export default async function handler(req: any, res: any) {
     return res.status(404).json({ error: 'Tipo não encontrado: ' + type });
 
   } catch (error: any) {
+    
     console.error(error);
     return res.status(500).json({ error: error.message });
   }

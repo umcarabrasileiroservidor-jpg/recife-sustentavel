@@ -1,35 +1,46 @@
+// ... imports iguais ao anterior ...
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Plus, Edit, Trash2, Gift, Loader2 } from 'lucide-react';
+import { Textarea } from '../ui/textarea';
+import { Plus, Edit, Trash2, Search, Gift, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { getAdminRewards, createAdminReward, updateAdminReward, deleteAdminReward } from '../../services/dataService';
 import { toast } from 'sonner';
 import { Badge } from '../ui/badge';
-import { getAdminRewards, createAdminReward, updateAdminReward, deleteAdminReward } from '../../services/dataService';
 
 export function RewardsManagement() {
+  // ... estados iguais ...
   const [rewards, setRewards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [formData, setFormData] = useState<any>({ title: '', description: '', value: '', partner: '', status: 'ativo' });
   const [isEditing, setIsEditing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const load = () => {
     setLoading(true);
     getAdminRewards().then(data => setRewards(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
   };
-  
   useEffect(() => { load(); }, []);
 
   const handleSave = async () => {
+    // VALIDAÇÃO
+    if (!formData.title || !formData.value) {
+        toast.error("Título e Valor são obrigatórios!");
+        return;
+    }
+
     const success = isEditing ? await updateAdminReward(formData) : await createAdminReward(formData);
     if (success) { toast.success('Salvo!'); setShowDialog(false); load(); }
     else toast.error('Erro ao salvar');
   };
-
+  
+  // ... resto das funções (handleDelete, openEdit, etc) iguais ...
   const handleDelete = async (id: string) => {
     if (confirm('Excluir recompensa?')) { 
         const success = await deleteAdminReward(id); 
@@ -40,8 +51,9 @@ export function RewardsManagement() {
 
   const openEdit = (r: any) => { setFormData(r); setIsEditing(true); setShowDialog(true); };
   const openCreate = () => { setFormData({ title: '', description: '', value: '', partner: '', status: 'ativo' }); setIsEditing(false); setShowDialog(true); };
+  const filteredRewards = rewards.filter((r) => r.title?.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  if (loading) return <div className="p-6 text-center"><Loader2 className="animate-spin mx-auto"/> Carregando...</div>;
+  if (loading) return <div className="p-6 text-center"><Loader2 className="animate-spin mx-auto"/></div>;
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px]">
@@ -52,7 +64,7 @@ export function RewardsManagement() {
           <DialogContent>
             <DialogHeader>
                 <DialogTitle>{isEditing ? 'Editar' : 'Nova'}</DialogTitle>
-                <DialogDescription>Configure o prêmio disponível no app.</DialogDescription>
+                <DialogDescription>Cadastre um benefício para troca.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
                 <div className="space-y-2"><Label>Título</Label><Input value={formData.title} onChange={e=>setFormData({...formData, title: e.target.value})} /></div>
@@ -66,23 +78,28 @@ export function RewardsManagement() {
           </DialogContent>
         </Dialog>
       </div>
-      <Card><CardContent className="p-0"><Table>
-        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {rewards.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-4">Nenhuma recompensa.</TableCell></TableRow>}
-          {rewards.map(r => (
-            <TableRow key={r.id}>
-              <TableCell><div className="flex items-center gap-2"><Gift className="w-4 h-4"/> {r.title}</div></TableCell>
-              <TableCell>{r.value} pts</TableCell>
-              <TableCell><Badge variant={r.status === 'ativo' ? 'default' : 'secondary'}>{r.status}</Badge></TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Edit className="w-4 h-4"/></Button>
-                <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDelete(r.id)}><Trash2 className="w-4 h-4"/></Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table></CardContent></Card>
+      
+      {/* Tabela */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {filteredRewards.map(r => (
+                <TableRow key={r.id}>
+                  <TableCell><div className="flex items-center gap-2"><Gift className="w-4 h-4"/> {r.title}</div></TableCell>
+                  <TableCell>{r.value} pts</TableCell>
+                  <TableCell><Badge variant={r.status === 'ativo' ? 'default' : 'secondary'}>{r.status}</Badge></TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Edit className="w-4 h-4"/></Button>
+                    <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDelete(r.id)}><Trash2 className="w-4 h-4"/></Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

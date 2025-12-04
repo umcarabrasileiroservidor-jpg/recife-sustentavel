@@ -26,7 +26,7 @@ export function BinsManagement() {
   useEffect(() => { load(); }, []);
 
   const handleSave = async () => {
-    // VALIDAÇÃO CRÍTICA: Garante que Lat/Lng não sejam vazios
+    // VALIDAÇÃO: Impede envio de dados vazios
     if (!formData.location || !formData.lat || !formData.lng) {
         toast.error("Preencha Nome, Latitude e Longitude!");
         return;
@@ -39,25 +39,25 @@ export function BinsManagement() {
     };
 
     if (isNaN(payload.lat) || isNaN(payload.lng)) {
-        toast.error("Latitude e Longitude devem ser números válidos (use ponto, não vírgula).");
+        toast.error("Latitude e Longitude inválidas. Use ponto (.)");
         return;
     }
 
     const success = isEditing ? await updateAdminBin(payload) : await createAdminBin(payload);
     
     if (success) {
-      toast.success(isEditing ? 'Lixeira atualizada!' : 'Lixeira criada!');
+      toast.success(isEditing ? 'Atualizado!' : 'Criado!');
       setShowDialog(false);
       load();
     } else {
-      toast.error('Erro ao salvar lixeira');
+      toast.error('Erro ao salvar. Verifique os dados.');
     }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Tem certeza?')) {
       const success = await deleteAdminBin(id);
-      if (success) { toast.success('Lixeira excluída!'); load(); }
+      if (success) { toast.success('Excluído!'); load(); }
       else toast.error("Erro ao excluir");
     }
   };
@@ -74,7 +74,7 @@ export function BinsManagement() {
     setShowDialog(true);
   };
 
-  if (loading) return <div className="p-6 text-center"><Loader2 className="animate-spin mx-auto"/> Carregando lixeiras...</div>;
+  if (loading) return <div className="p-6 text-center"><Loader2 className="animate-spin mx-auto"/></div>;
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px]">
@@ -85,15 +85,15 @@ export function BinsManagement() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{isEditing ? 'Editar' : 'Nova'} Lixeira</DialogTitle>
-              <DialogDescription>Cadastre as coordenadas para o mapa.</DialogDescription>
+              <DialogDescription>Cadastre as coordenadas exatas para o mapa.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-                <div className="space-y-2"><Label>Local</Label><Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Ex: Praça do Derby" /></div>
+                <div className="space-y-2"><Label>Nome do Local</Label><Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Ex: Praça do Derby" /></div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Latitude</Label><Input value={formData.lat} onChange={e=>setFormData({...formData, lat: e.target.value})} placeholder="-8.0522" /></div>
                     <div className="space-y-2"><Label>Longitude</Label><Input value={formData.lng} onChange={e=>setFormData({...formData, lng: e.target.value})} placeholder="-34.8956" /></div>
                 </div>
-                <div className="space-y-2"><Label>Tipo</Label>
+                <div className="space-y-2"><Label>Tipo de Resíduo</Label>
                     <Select value={formData.type} onValueChange={v=>setFormData({...formData, type: v})}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -101,31 +101,20 @@ export function BinsManagement() {
                             <SelectItem value="organico">Orgânico</SelectItem>
                             <SelectItem value="eletronico">Eletrônico</SelectItem>
                             <SelectItem value="vidro">Vidro</SelectItem>
-                            <SelectItem value="papel">Papel</SelectItem>
-                            <SelectItem value="metal">Metal</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
-                 {isEditing && (
-                    <div className="space-y-2"><Label>Status</Label>
-                        <Select value={formData.status} onValueChange={v=>setFormData({...formData, status: v})}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="ativa">Ativa</SelectItem><SelectItem value="manutencao">Manutenção</SelectItem></SelectContent>
-                        </Select>
-                    </div>
-                )}
             </div>
             <DialogFooter><Button onClick={handleSave}>Salvar</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-
-      <Card>
+      {/* Tabela (código igual ao anterior, omitido para brevidade) */}
+       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader><TableRow><TableHead>Local</TableHead><TableHead>Lat/Lng</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
             <TableBody>
-              {bins.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-4">Nenhuma lixeira cadastrada.</TableCell></TableRow>}
               {bins.map((bin) => (
                 <TableRow key={bin.id}>
                   <TableCell><div className="flex items-center gap-2"><MapPin className="w-4 h-4"/> {bin.location}</div></TableCell>

@@ -12,7 +12,7 @@ export interface UserProfile {
   total_descartes?: number;
 }
 
-// --- CLIENTE HTTP "X-RAY" (Mostra o erro na tela) ---
+// --- CLIENTE HTTP BLINDADO ---
 async function apiRequest(endpoint: string, method: string = 'GET', body?: any) {
   const sessionStr = localStorage.getItem('recife_sustentavel_session');
   const session = sessionStr ? JSON.parse(sessionStr) : {};
@@ -21,69 +21,82 @@ async function apiRequest(endpoint: string, method: string = 'GET', body?: any) 
   if (session.token) headers['Authorization'] = `Bearer ${session.token}`;
 
   try {
-    // Tenta fazer a requisição
     const res = await fetch(endpoint, {
       method,
       headers,
       body: method !== 'DELETE' && body ? JSON.stringify(body) : undefined
     });
     
-    // Se for 401 (Sessão caiu), avisa e sai
-    if (res.status === 401) {
-       toast.error("Sessão expirada. Entre novamente.");
-       localStorage.removeItem('recife_sustentavel_session');
-       // Pequeno delay para o usuário ler antes de recarregar
-       setTimeout(() => window.location.reload(), 2000);
-       return null;
-    }
-
-    // Se for DELETE e deu certo
+    if (res.status === 401) throw new Error('Unauthorized');
     if (method === 'DELETE' && res.ok) return true;
 
-    // Tenta ler o JSON da resposta
     const data = await res.json().catch(() => null);
     
-    // Se a API deu erro (404, 500, 400...)
     if (!res.ok) {
-      const msg = data?.error || res.statusText;
-      // AQUI ESTÁ O TRUQUE: Mostra o erro na tela do celular!
-      toast.error(`Erro (${res.status}): ${msg}`);
-      console.error(`Erro API (${endpoint}):`, msg);
+      console.error(`Erro API (${endpoint}):`, data?.error);
       return null;
     }
-    
     return data;
-
   } catch (error: any) {
-    // Se for erro de internet/rede
-    toast.error(`Erro de Conexão: ${error.message}`);
+    if (error.message === 'Unauthorized') {
+       // Não limpa sessão automaticamente para evitar logout por instabilidade
+    }
     return null;
   }
 }
 
 // --- USUÁRIO ---
 export async function getCurrentUserProfile() {
-  const res = await apiRequest('/api/me');
-  if (res?.user) {
-    const s = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}');
-    s.user = { ...s.user, ...res.user };
-    localStorage.setItem('recife_sustentavel_session', JSON.stringify(s));
-    return s.user as UserProfile;
-  }
-  return null;
+  const sessionStr = localStorage.getItem('recife_sustentavel_session');
+  if (!sessionStr) return null;
+  
+  const session = JSON.parse(sessionStr);
+  if (!session.user) return null;
+
+  try {
+    const res = await apiRequest('/api/me');
+    if (res?.user) {
+      session.user = { ...session.user, ...res.user };
+      localStorage.setItem('recife_sustentavel_session', JSON.stringify(session));
+    }
+  } catch (e) { console.log("Usando cache local"); }
+  return session.user as UserProfile;
 }
 
-// --- AÇÕES MOBILE ---
-export const registrarDescarte = (t: string, m: number, img: string) => 
-  apiRequest('/api/descarte', 'POST', { tipo_residuo: t, imageBase64: img, multiplicador_volume: m })
-  .then(r => r ? { success: true, points: r.points } : { success: false, msg: 'Erro no envio' });
+// --- AÇÕES ---
+export async function registrarDescarte(tipo: string, multiplier: number, imageBase64: string) {
+  const res = await apiRequest('/api/descarte', 'POST', { 
+    tipo_residuo: tipo, 
+    imageBase64, 
+    multiplicador_volume: multiplier 
+  });
+
+  if (res?.success) {
+      // Atualiza cache local para refletir na hora
+      const session = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}');
+      if (session.user) {
+          session.user.total_descartes = (session.user.total_descartes || 0) + 1;
+          session.user.ultimo_descarte = new Date().toISOString();
+          localStorage.setItem('recife_sustentavel_session', JSON.stringify(session));
+      }
+      return { success: true, points: res.points };
+  }
+  return { success: false, msg: 'Erro no envio' };
+}
 
 export const resgatarRecompensa = (c: number, t: string) => {
     const s = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}');
-    return apiRequest('/api/recompensa', 'POST', { userId: s.user.id, cost: c, title: t }).then(r => !!r);
+    return apiRequest('/api/recompensa', 'POST', { userId: s.user.id, cost: c, title: t })
+      .then(r => {
+          if(r && s.user) {
+             s.user.saldo_pontos -= c;
+             localStorage.setItem('recife_sustentavel_session', JSON.stringify(s));
+          }
+          return !!r;
+      });
 }
 
-// --- LEITURA MOBILE ---
+// --- LEITURA ---
 export const getLixeiras = () => apiRequest('/api/user-api?type=lixeiras').then(r => r || []);
 export const getRecompensas = () => apiRequest('/api/user-api?type=recompensas').then(r => r || []);
 export const getTransacoes = () => apiRequest('/api/user-api?type=transacoes').then(r => r || []);
@@ -91,10 +104,13 @@ export const getHistorico = () => apiRequest('/api/user-api?type=historico').the
 export const getPenalidades = () => apiRequest('/api/user-api?type=penalidades').then(r => r || []);
 export const getDashboardData = async () => {
   const h = await getHistorico();
-  return { weeklyProgress: h ? h.length : 0 };
+  const now = new Date();
+  const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+  startOfWeek.setHours(0,0,0,0);
+  return { weeklyProgress: (h || []).filter((d: any) => new Date(d.criado_em) >= startOfWeek).length };
 };
 
-// --- ADMIN (TODAS AS ROTAS UNIFICADAS) ---
+// --- ADMIN ---
 export const getAdminDashboardStats = () => apiRequest('/api/admin-api?type=dashboard');
 export const getAdminUsers = () => apiRequest('/api/admin-api?type=users').then(r => r || []);
 export const updateAdminUserStatus = (id: string, s: string) => apiRequest('/api/admin-api?type=users', 'PUT', { id, status: s });

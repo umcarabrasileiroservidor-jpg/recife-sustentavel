@@ -129,30 +129,36 @@ export const getDashboardData = async () => {
 
 // --- ADMIN (CORRIGIDO: DELETE VIA URL) ---
 
-export const getAdminDashboardStats = () => apiRequest('/api/admin/dashboard');
-export const getAdminUsers = () => apiRequest('/api/admin/users').then(r => r || []);
-export const updateAdminUserStatus = (id: string, status: string) => apiRequest('/api/admin/users', 'PUT', { id, status });
+// --- ADMIN (CONSOLIDADO) ---
 
-// CORREÇÃO: Passando ID na URL (?id=...)
-export const deleteAdminUser = (id: string) => apiRequest(`/api/admin/users?id=${id}`, 'DELETE');
+// Dashboard
+export const getAdminDashboardStats = () => apiRequest('/api/admin-api?type=dashboard');
 
-export const getAdminBins = () => apiRequest('/api/admin/bins').then(r => r || []);
-export const createAdminBin = (data: any) => apiRequest('/api/admin/bins', 'POST', data);
-export const updateAdminBin = (data: any) => apiRequest('/api/admin/bins', 'PUT', data);
-export const deleteAdminBin = (id: string) => apiRequest(`/api/admin/bins?id=${id}`, 'DELETE');
+// Usuários
+export const getAdminUsers = () => apiRequest('/api/admin-api?type=users').then(r => r || []);
+export const updateAdminUserStatus = (id: string, status: string) => apiRequest('/api/admin-api?type=users', 'PUT', { id, status });
+export const deleteAdminUser = (id: string) => apiRequest(`/api/admin-api?type=users&id=${id}`, 'DELETE');
 
-export const getAdminRewards = () => apiRequest('/api/admin/rewards').then(r => r || []);
-export const createAdminReward = (data: any) => apiRequest('/api/admin/rewards', 'POST', data);
-export const updateAdminReward = (data: any) => apiRequest('/api/admin/rewards', 'PUT', data);
-export const deleteAdminReward = (id: string) => apiRequest(`/api/admin/rewards?id=${id}`, 'DELETE');
+// Lixeiras
+export const getAdminBins = () => apiRequest('/api/admin-api?type=bins').then(r => r || []);
+export const createAdminBin = (data: any) => apiRequest('/api/admin-api?type=bins', 'POST', data);
+export const updateAdminBin = (data: any) => apiRequest('/api/admin-api?type=bins', 'PUT', data);
+export const deleteAdminBin = (id: string) => apiRequest(`/api/admin-api?type=bins&id=${id}`, 'DELETE');
 
-export const getAdminPenalties = () => apiRequest('/api/admin/penalties').then(r => r || []);
-export const processarAuditoria = (id: string, status: string, pontos: number) => apiRequest('/api/admin/auditoria', 'POST', { id, status, pontos });
-export const getAdminReports = (periodo: string) => apiRequest(`/api/admin/reports?periodo=${periodo}`).then(r => r || null);
-// --- ADMIN: PENALIDADES (Adicionado agora) ---
+// Recompensas
+export const getAdminRewards = () => apiRequest('/api/admin-api?type=rewards').then(r => r || []);
+export const createAdminReward = (data: any) => apiRequest('/api/admin-api?type=rewards', 'POST', data);
+export const updateAdminReward = (data: any) => apiRequest('/api/admin-api?type=rewards', 'PUT', data);
+export const deleteAdminReward = (id: string) => apiRequest(`/api/admin-api?type=rewards&id=${id}`, 'DELETE');
 
+// Penalidades
+export const getAdminPenalties = () => apiRequest('/api/admin-api?type=penalties').then(r => r || []);
+export const createAdminPenalty = (data: any) => apiRequest('/api/admin-api?type=penalties', 'POST', data);
+export const deleteAdminPenalty = (id: string) => apiRequest(`/api/admin-api?type=penalties&id=${id}`, 'DELETE');
 
-export const createAdminPenalty = (data: any) => apiRequest('/api/admin/penalties', 'POST', data);
+// Auditoria
 
-// Deletar via URL para evitar erro de body
-export const deleteAdminPenalty = (id: string) => apiRequest(`/api/admin/penalties?id=${id}`, 'DELETE');
+export const processarAuditoria = (id: string, status: string, pontos: number) => apiRequest('/api/admin-api?type=auditoria', 'POST', { id, status, pontos });
+
+// Relatórios
+export const getAdminReports = (periodo: string) => apiRequest(`/api/admin-api?type=reports&periodo=${periodo}`).then(r => r || null);

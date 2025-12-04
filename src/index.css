@@ -33,12 +33,22 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Trava a rolagem elástica no mobile */
+    overscroll-behavior: none;
+    /* Garante altura correta em mobile */
+    height: 100dvh; 
+    width: 100vw;
+    overflow: hidden;
+  }
+  #root {
+    height: 100%;
+    width: 100%;
   }
 }
 
+/* Mapa */
 .leaflet-container {
   width: 100% !important;
   height: 100% !important;
-  min-height: 300px;
   z-index: 0;
 }

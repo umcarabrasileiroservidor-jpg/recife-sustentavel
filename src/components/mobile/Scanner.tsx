@@ -194,6 +194,7 @@ export function Scanner({ onNavigate }: ScannerProps) {
           {/* 4. SUCCESS */}
           {step === 'success' && (
             <motion.div key="success" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex-1 flex flex-col items-center justify-center text-center px-4">
+              
               <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mb-6 animate-bounce"><Info className="w-12 h-12 text-amber-600" /></div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Enviado para Análise!</h2>
               <Card className="bg-white border-amber-100 shadow-sm mb-8 w-full"><CardContent className="p-4 text-left"><p className="text-gray-600 text-sm leading-relaxed">Foto recebida com sucesso! 📸<br/>Um administrador irá validar em breve.</p><div className="mt-4 flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-100"><AlertCircle className="w-4 h-4 text-amber-600 shrink-0" /><p className="text-xs text-amber-700 font-medium">Pontos liberados após aprovação.</p></div></CardContent></Card>

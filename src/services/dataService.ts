@@ -36,10 +36,12 @@ async function apiRequest(endpoint: string, method: string = 'GET', body?: any) 
       console.error(`Erro API (${endpoint}):`, data?.error);
       return null;
     }
-    
     return data;
   } catch (error: any) {
-    if (error.message === 'Unauthorized') throw error;
+    if (error.message === 'Unauthorized') {
+       // Não limpa a sessão automaticamente para evitar logout brusco em falhas de rede
+       console.warn("Erro de autorização API");
+    }
     return null;
   }
 }
@@ -50,7 +52,7 @@ export async function getCurrentUserProfile() {
   if (!sessionStr) return null;
   
   const session = JSON.parse(sessionStr);
-  if (!session.user || !session.token) return null;
+  if (!session.user) return null;
 
   try {
     const res = await apiRequest('/api/me');
@@ -58,12 +60,7 @@ export async function getCurrentUserProfile() {
       session.user = { ...session.user, ...res.user };
       localStorage.setItem('recife_sustentavel_session', JSON.stringify(session));
     }
-  } catch (e: any) {
-    if (e.message === 'Unauthorized') {
-      localStorage.removeItem('recife_sustentavel_session');
-      return null;
-    }
-  }
+  } catch (e) { console.log("Usando cache local"); }
   return session.user as UserProfile;
 }
 
@@ -90,16 +87,15 @@ export const getRecompensas = () => apiRequest('/api/user-api?type=recompensas')
 export const getTransacoes = () => apiRequest('/api/user-api?type=transacoes').then(r => r || []);
 export const getHistorico = () => apiRequest('/api/user-api?type=historico').then(r => r || []);
 export const getPenalidades = () => apiRequest('/api/user-api?type=penalidades').then(r => r || []);
-
 export const getDashboardData = async () => {
-  const hist = await getHistorico();
+  const h = await getHistorico();
   const now = new Date();
   const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
   startOfWeek.setHours(0,0,0,0);
-  return { weeklyProgress: (hist || []).filter((d: any) => new Date(d.criado_em) >= startOfWeek).length };
+  return { weeklyProgress: (h || []).filter((d: any) => new Date(d.criado_em) >= startOfWeek).length };
 };
 
-// --- ADMIN (TODAS AS ROTAS UNIFICADAS AQUI) ---
+// --- ADMIN (CORRIGIDO: AUDITORIA AGORA APONTA CERTO) ---
 export const getAdminDashboardStats = () => apiRequest('/api/admin-api?type=dashboard');
 export const getAdminUsers = () => apiRequest('/api/admin-api?type=users').then(r => r || []);
 export const updateAdminUserStatus = (id: string, s: string) => apiRequest('/api/admin-api?type=users', 'PUT', { id, status: s });
@@ -119,7 +115,7 @@ export const getAdminPenalties = () => apiRequest('/api/admin-api?type=penalties
 export const createAdminPenalty = (d: any) => apiRequest('/api/admin-api?type=penalties', 'POST', d);
 export const deleteAdminPenalty = (id: string) => apiRequest(`/api/admin-api?type=penalties&id=${id}`, 'DELETE');
 
-// CORREÇÃO AQUI: Apontando para admin-api?type=auditoria
+// AQUI ESTAVA O ERRO 404! CORRIGIDO:
 export const getAuditoriaPendentes = () => apiRequest('/api/admin-api?type=auditoria').then(r => r || []);
 export const processarAuditoria = (id: string, s: string, p: number) => apiRequest('/api/admin-api?type=auditoria', 'POST', { id, status: s, pontos: p });
 

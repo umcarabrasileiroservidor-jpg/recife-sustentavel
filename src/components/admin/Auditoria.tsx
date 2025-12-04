@@ -4,6 +4,8 @@ import { Button } from '../ui/button';
 import { CheckCircle, XCircle, Loader2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '../ui/badge';
+// IMPORTANTE: Agora usamos as funções do serviço, não o fetch direto
+import { getAuditoriaPendentes, processarAuditoria } from '../../services/dataService';
 
 export function Auditoria() {
   const [pendentes, setPendentes] = useState<any[]>([]);
@@ -11,32 +13,23 @@ export function Auditoria() {
 
   const load = async () => {
     setLoading(true);
-    try {
-      const res = await fetch('/api/admin/auditoria');
-      if (res.ok) setPendentes(await res.json());
-    } catch {
-      toast.error("Erro ao carregar");
-    } finally {
-      setLoading(false);
-    }
+    // CORREÇÃO: Usa a função do serviço que aponta para a rota certa
+    getAuditoriaPendentes()
+      .then(data => setPendentes(Array.isArray(data) ? data : []))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
 
   const decidir = async (id: string, acao: 'aprovado' | 'rejeitado', pontos: number) => {
-    try {
-      const res = await fetch('/api/admin/auditoria', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: acao, pontos })
-      });
-      
-      if (res.ok) {
-        toast.success(acao === 'aprovado' ? `Aprovado (+${pontos})` : 'Rejeitado');
-        load(); // Atualiza lista
-      }
-    } catch {
-      toast.error("Erro ao processar");
+    // CORREÇÃO: Usa a função do serviço
+    const sucesso = await processarAuditoria(id, acao, pontos);
+    
+    if (sucesso) {
+      toast.success(acao === 'aprovado' ? `Aprovado (+${pontos})` : 'Rejeitado');
+      load(); // Recarrega a lista para remover o item
+    } else {
+      toast.error("Erro ao processar decisão.");
     }
   };
 
@@ -51,7 +44,7 @@ export function Auditoria() {
       {pendentes.length === 0 ? (
         <div className="text-center text-muted-foreground py-10 bg-muted/20 rounded-xl">
           <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500/50" />
-          Nenhum descarte pendente. Bom trabalho!
+          <p>Tudo limpo! Nenhum descarte pendente.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -75,7 +68,7 @@ export function Auditoria() {
                   <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => decidir(item.id, 'rejeitado', 0)}>
                     <XCircle className="mr-2 h-4 w-4" /> Rejeitar
                   </Button>
-                  <Button className="bg-green-600 hover:bg-green-700" onClick={() => decidir(item.id, 'aprovado', item.pontos_estimados)}>
+                  <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => decidir(item.id, 'aprovado', item.pontos_estimados)}>
                     <CheckCircle className="mr-2 h-4 w-4" /> Aprovar
                   </Button>
                 </div>

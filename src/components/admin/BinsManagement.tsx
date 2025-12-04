@@ -5,11 +5,11 @@ import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { MapPin, Plus, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { getAdminBins, createAdminBin, deleteAdminBin, updateAdminBin } from '../../services/dataService';
 import { toast } from 'sonner';
+import { getAdminBins, createAdminBin, deleteAdminBin, updateAdminBin } from '../../services/dataService';
 
 export function BinsManagement() {
   const [bins, setBins] = useState<any[]>([]);
@@ -20,7 +20,7 @@ export function BinsManagement() {
 
   const load = () => {
     setLoading(true);
-    getAdminBins().then(setBins).finally(() => setLoading(false));
+    getAdminBins().then(data => setBins(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
   };
   
   useEffect(() => { load(); }, []);
@@ -30,18 +30,19 @@ export function BinsManagement() {
     const success = isEditing ? await updateAdminBin(payload) : await createAdminBin(payload);
     
     if (success) {
-      toast.success(isEditing ? 'Atualizado!' : 'Criado!');
+      toast.success(isEditing ? 'Lixeira atualizada!' : 'Lixeira criada!');
       setShowDialog(false);
       load();
     } else {
-      toast.error('Erro ao salvar');
+      toast.error('Erro ao salvar lixeira');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza?')) {
+    if (confirm('Tem certeza? Isso removerá a lixeira do mapa.')) {
       const success = await deleteAdminBin(id);
-      if (success) { toast.success('Excluído!'); load(); }
+      if (success) { toast.success('Lixeira excluída!'); load(); }
+      else toast.error("Erro ao excluir");
     }
   };
 
@@ -62,27 +63,41 @@ export function BinsManagement() {
   return (
     <div className="p-6 space-y-6 max-w-[1400px]">
       <div className="flex justify-between items-center">
-        <h2>Lixeiras</h2>
+        <h2>Gestão de Lixeiras</h2>
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild><Button onClick={openCreate}><Plus className="mr-2 h-4 w-4"/> Nova Lixeira</Button></DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>{isEditing ? 'Editar' : 'Nova'} Lixeira</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{isEditing ? 'Editar' : 'Nova'} Lixeira</DialogTitle>
+              <DialogDescription>Defina a localização exata para aparecer no mapa.</DialogDescription>
+            </DialogHeader>
             <div className="space-y-4">
-                <div className="space-y-2"><Label>Local</Label><Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} /></div>
+                <div className="space-y-2"><Label>Nome do Local</Label><Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Ex: Praça do Derby" /></div>
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Lat</Label><Input value={formData.lat} onChange={e=>setFormData({...formData, lat: e.target.value})} /></div>
-                    <div className="space-y-2"><Label>Lng</Label><Input value={formData.lng} onChange={e=>setFormData({...formData, lng: e.target.value})} /></div>
+                    <div className="space-y-2"><Label>Latitude</Label><Input value={formData.lat} onChange={e=>setFormData({...formData, lat: e.target.value})} placeholder="-8.0522" /></div>
+                    <div className="space-y-2"><Label>Longitude</Label><Input value={formData.lng} onChange={e=>setFormData({...formData, lng: e.target.value})} placeholder="-34.8956" /></div>
                 </div>
-                <div className="space-y-2"><Label>Tipo</Label>
+                <div className="space-y-2"><Label>Tipo de Resíduo</Label>
                     <Select value={formData.type} onValueChange={v=>setFormData({...formData, type: v})}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="reciclavel">Reciclável</SelectItem>
-                            <SelectItem value="organico">Orgânico</SelectItem>
-                            <SelectItem value="eletronico">Eletrônico</SelectItem>
+                            <SelectItem value="reciclavel">Reciclável (Vermelha)</SelectItem>
+                            <SelectItem value="organico">Orgânico (Marrom)</SelectItem>
+                            <SelectItem value="eletronico">Eletrônico (Laranja)</SelectItem>
+                            <SelectItem value="vidro">Vidro (Verde)</SelectItem>
+                            <SelectItem value="papel">Papel (Azul)</SelectItem>
+                            <SelectItem value="metal">Metal (Amarela)</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
+                {isEditing && (
+                    <div className="space-y-2"><Label>Status</Label>
+                        <Select value={formData.status} onValueChange={v=>setFormData({...formData, status: v})}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent><SelectItem value="ativa">Ativa</SelectItem><SelectItem value="manutencao">Manutenção</SelectItem></SelectContent>
+                        </Select>
+                    </div>
+                )}
             </div>
             <DialogFooter><Button onClick={handleSave}>Salvar</Button></DialogFooter>
           </DialogContent>

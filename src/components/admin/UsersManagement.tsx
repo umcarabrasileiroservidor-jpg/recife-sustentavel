@@ -6,8 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
-import { getAdminUsers, updateAdminUserStatus, deleteAdminUser } from '../../services/dataService';
 import { toast } from 'sonner';
+import { getAdminUsers, updateAdminUserStatus, deleteAdminUser } from '../../services/dataService';
 
 export function UsersManagement() {
   const [users, setUsers] = useState<any[]>([]);
@@ -17,22 +17,24 @@ export function UsersManagement() {
   const load = () => {
     setLoading(true);
     getAdminUsers()
-      .then(setUsers)
+      .then(data => setUsers(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
   };
-  
+
   useEffect(() => { load(); }, []);
 
   const handleStatusChange = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'ativo' ? 'banido' : 'ativo';
     const success = await updateAdminUserStatus(id, newStatus);
     if (success) { toast.success(`Status atualizado!`); load(); }
+    else toast.error("Erro ao atualizar status");
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza?')) {
+    if (confirm('Tem certeza que deseja excluir este usuário?')) {
       const success = await deleteAdminUser(id);
       if (success) { toast.success('Usuário excluído'); load(); }
+      else toast.error("Erro ao excluir");
     }
   };
 
@@ -47,8 +49,8 @@ export function UsersManagement() {
     <div className="p-6 space-y-6 max-w-[1400px]">
       <div className="flex justify-between items-center">
         <div>
-            <h2 className="text-2xl font-bold">Gerenciamento de Usuários</h2>
-            <p className="text-muted-foreground">{users.length} usuários cadastrados</p>
+            <h2 className="text-2xl font-bold">Usuários</h2>
+            <p className="text-muted-foreground">{users.length} cadastrados</p>
         </div>
         <div className="relative w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

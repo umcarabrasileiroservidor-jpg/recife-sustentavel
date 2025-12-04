@@ -3,12 +3,14 @@ import Webcam from 'react-webcam';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
-import { ArrowLeft, Camera, CheckCircle2, QrCode, Loader2, Info, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Camera, CheckCircle2, QrCode, Loader2, Info, AlertCircle, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { checkTimeLimit } from '../../utils/timeUtils';
 import { QrScannerComponent } from './QrScannerComponent';
 import { useUser } from '../../contexts/UserContext';
 import { registrarDescarte } from '../../services/dataService';
+// Importando Dialog para o aviso do professor
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 
 // --- SUPER COMPRESSÃO ---
 const compressImage = (base64Str: string): Promise<string> => {
@@ -17,7 +19,7 @@ const compressImage = (base64Str: string): Promise<string> => {
     img.src = base64Str;
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const maxWidth = 800; // Aumentei um pouco para garantir legibilidade
+      const maxWidth = 800;
       const ratio = maxWidth / img.width;
       canvas.width = maxWidth;
       canvas.height = img.height * ratio;
@@ -45,8 +47,11 @@ export function Scanner({ onNavigate }: ScannerProps) {
   const [step, setStep] = useState<Step>('intro'); 
   const [binData, setBinData] = useState<{id: string, type: string} | null>(null);
   
+  // Estado para o Aviso do Professor
+  const [showWarning, setShowWarning] = useState(false);
+
   const webcamRef = useRef<Webcam>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null); // Referência para o input de arquivo
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user?.ultimo_descarte) {
@@ -73,10 +78,8 @@ export function Scanner({ onNavigate }: ScannerProps) {
     setStep('take_photo');
   };
 
-  // Função Centralizada de Envio (Recebe o Base64 pronto)
   const processAndSend = async (imageSrc: string) => {
     if (!binData) return;
-
     try {
         setStep('sending');
         const compressedImage = await compressImage(imageSrc);
@@ -94,17 +97,12 @@ export function Scanner({ onNavigate }: ScannerProps) {
     }
   };
 
-  // 1. Captura da Webcam
   const handleWebcamCapture = () => {
     const imageSrc = webcamRef.current?.getScreenshot();
-    if (imageSrc) {
-      processAndSend(imageSrc);
-    } else {
-      toast.error("Erro na câmera.");
-    }
+    if (imageSrc) processAndSend(imageSrc);
+    else toast.error("Erro na câmera.");
   };
 
-  // 2. Seleção da Galeria
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -129,16 +127,8 @@ export function Scanner({ onNavigate }: ScannerProps) {
 
   return (
     <div className="h-[100dvh] bg-gray-50 flex flex-col relative overflow-hidden">
-      {/* Input invisível para galeria */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        accept="image/*" 
-        className="hidden" 
-        onChange={handleFileSelect}
-      />
+      <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleFileSelect} />
 
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 p-4 pt-safe-top flex items-center justify-between z-10 shadow-sm shrink-0">
         <button onClick={() => onNavigate('home')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6 text-gray-700" />
@@ -157,18 +147,27 @@ export function Scanner({ onNavigate }: ScannerProps) {
         <AnimatePresence mode="wait">
           
           {step === 'intro' && (
-            <motion.div key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col justify-center">
+            <motion.div key="intro" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col justify-center">
               <div className="text-center space-y-6">
                 <div className="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Camera className="w-16 h-16 text-[#2E8B57]" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-800">Registrar Descarte</h2>
-                <p className="text-gray-500">Escaneie o código da lixeira e envie uma foto para ganhar pontos.</p>
-                <Button className="w-full h-14 text-lg rounded-xl shadow-lg font-bold" style={{ backgroundColor: '#2E8B57', color: 'white' }} onClick={() => setStep('scan_qr')}>Começar</Button>
+                <p className="text-gray-500 px-4">Siga os passos para validar seu descarte e ganhar pontos.</p>
+                
+                {/* BOTÃO QUE ABRE O AVISO */}
+                <Button 
+                  className="w-full h-14 text-lg rounded-xl shadow-lg font-bold"
+                  style={{ backgroundColor: '#2E8B57', color: 'white' }} 
+                  onClick={() => setShowWarning(true)}
+                >
+                  Começar Agora
+                </Button>
               </div>
             </motion.div>
           )}
 
+          {/* RESTO DO CÓDIGO IGUAL AO ANTERIOR... */}
           {step === 'scan_qr' && (
             <motion.div key="scan" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="flex-1 flex flex-col items-center justify-center gap-6">
                <div className="text-center"><h2 className="text-xl font-bold text-gray-800">Leia o QR Code</h2></div>
@@ -180,39 +179,15 @@ export function Scanner({ onNavigate }: ScannerProps) {
 
           {step === 'take_photo' && binData && (
             <motion.div key="photo" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center w-full h-full">
-               <div className="text-center mb-4">
-                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-[#2E8B57] rounded-full text-sm font-bold mb-2">
-                   <CheckCircle2 className="w-4 h-4" /> Lixeira Confirmada
-                 </div>
-                 <h2 className="text-xl font-bold text-gray-800">Envie uma Foto</h2>
-               </div>
-
-               {/* Preview da Câmera */}
+               <div className="text-center mb-4"><div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-[#2E8B57] rounded-full text-sm font-bold mb-2"><CheckCircle2 className="w-4 h-4" /> Lixeira Confirmada</div><h2 className="text-xl font-bold text-gray-800">Envie uma Foto</h2></div>
                <div className="relative w-full max-w-sm flex-1 bg-black rounded-3xl overflow-hidden shadow-xl mb-6 min-h-[300px]">
                   <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={{ facingMode: "environment" }} className="w-full h-full object-cover" />
                </div>
-
-               {/* Botões de Ação */}
                <div className="w-full px-2 pb-4 space-y-3">
                  <div className="grid grid-cols-4 gap-3">
-                    {/* Botão Galeria (Menor) */}
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="col-span-1 h-16 bg-white border-2 border-gray-200 text-gray-600 rounded-2xl font-bold shadow-sm flex flex-col items-center justify-center active:scale-95 transition-transform"
-                    >
-                      <ImageIcon className="w-6 h-6 mb-1" />
-                    </button>
-
-                    {/* Botão Câmera (Maior) */}
-                    <button 
-                      onClick={handleWebcamCapture}
-                      className="col-span-3 h-16 text-white rounded-2xl font-bold text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-transform" 
-                      style={{ backgroundColor: '#2E8B57' }}
-                    >
-                      <Camera className="w-6 h-6" /> Tirar Foto
-                    </button>
+                    <button onClick={() => fileInputRef.current?.click()} className="col-span-1 h-16 bg-white border-2 border-gray-200 text-gray-600 rounded-2xl font-bold shadow-sm flex flex-col items-center justify-center active:scale-95 transition-transform"><ImageIcon className="w-6 h-6 mb-1" /></button>
+                    <button onClick={handleWebcamCapture} className="col-span-3 h-16 text-white rounded-2xl font-bold text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-transform" style={{ backgroundColor: '#2E8B57' }}><Camera className="w-6 h-6" /> Tirar Foto</button>
                  </div>
-                 
                  <button onClick={() => setStep('scan_qr')} className="w-full text-sm text-gray-400 hover:text-gray-600 py-2">Escanear outra lixeira</button>
                </div>
             </motion.div>
@@ -222,7 +197,6 @@ export function Scanner({ onNavigate }: ScannerProps) {
             <motion.div key="sending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center text-center">
               <Loader2 className="w-16 h-16 text-[#2E8B57] animate-spin mx-auto mb-4" />
               <h3 className="mt-8 text-xl font-bold text-gray-800">Enviando...</h3>
-              <p className="text-gray-500 mt-2">Comprimindo e salvando foto.</p>
             </motion.div>
           )}
 
@@ -234,9 +208,39 @@ export function Scanner({ onNavigate }: ScannerProps) {
               <Button className="w-full h-14 bg-gray-900 text-white rounded-xl font-bold" onClick={() => onNavigate('home')}>Voltar</Button>
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
+
+      {/* --- MODAL DE AVISO PARA O PROFESSOR --- */}
+      <Dialog open={showWarning} onOpenChange={setShowWarning}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="w-6 h-6" /> Atenção (Modo de Teste)
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-base text-gray-700">
+              Para testar o escaneamento corretamente, utilize os QR Codes disponíveis na pasta:
+              <br/><br/>
+              <strong className="block bg-gray-100 p-2 rounded text-center border border-gray-200">📂 QR_CODES_PARA_TESTE</strong>
+              <br/>
+              no repositório do GitHub.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center">
+            <Button 
+              type="button" 
+              className="w-full bg-[#2E8B57] hover:bg-[#246d44] h-12 text-lg"
+              onClick={() => {
+                setShowWarning(false);
+                setStep('scan_qr');
+              }}
+            >
+              ENTENDIDO
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

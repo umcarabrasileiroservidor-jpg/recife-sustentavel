@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { toast } from 'sonner';
 import { getAdminBins, createAdminBin, deleteAdminBin, updateAdminBin } from '../../services/dataService';
+import { toast } from 'sonner';
 
 export function BinsManagement() {
   const [bins, setBins] = useState<any[]>([]);
@@ -26,7 +26,23 @@ export function BinsManagement() {
   useEffect(() => { load(); }, []);
 
   const handleSave = async () => {
-    const payload = { ...formData, lat: parseFloat(formData.lat), lng: parseFloat(formData.lng) };
+    // VALIDAÇÃO CRÍTICA: Garante que Lat/Lng não sejam vazios
+    if (!formData.location || !formData.lat || !formData.lng) {
+        toast.error("Preencha Nome, Latitude e Longitude!");
+        return;
+    }
+
+    const payload = { 
+        ...formData, 
+        lat: parseFloat(formData.lat), 
+        lng: parseFloat(formData.lng) 
+    };
+
+    if (isNaN(payload.lat) || isNaN(payload.lng)) {
+        toast.error("Latitude e Longitude devem ser números válidos (use ponto, não vírgula).");
+        return;
+    }
+
     const success = isEditing ? await updateAdminBin(payload) : await createAdminBin(payload);
     
     if (success) {
@@ -39,7 +55,7 @@ export function BinsManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza? Isso removerá a lixeira do mapa.')) {
+    if (confirm('Tem certeza?')) {
       const success = await deleteAdminBin(id);
       if (success) { toast.success('Lixeira excluída!'); load(); }
       else toast.error("Erro ao excluir");
@@ -69,28 +85,28 @@ export function BinsManagement() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{isEditing ? 'Editar' : 'Nova'} Lixeira</DialogTitle>
-              <DialogDescription>Defina a localização exata para aparecer no mapa.</DialogDescription>
+              <DialogDescription>Cadastre as coordenadas para o mapa.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-                <div className="space-y-2"><Label>Nome do Local</Label><Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Ex: Praça do Derby" /></div>
+                <div className="space-y-2"><Label>Local</Label><Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} placeholder="Ex: Praça do Derby" /></div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Latitude</Label><Input value={formData.lat} onChange={e=>setFormData({...formData, lat: e.target.value})} placeholder="-8.0522" /></div>
                     <div className="space-y-2"><Label>Longitude</Label><Input value={formData.lng} onChange={e=>setFormData({...formData, lng: e.target.value})} placeholder="-34.8956" /></div>
                 </div>
-                <div className="space-y-2"><Label>Tipo de Resíduo</Label>
+                <div className="space-y-2"><Label>Tipo</Label>
                     <Select value={formData.type} onValueChange={v=>setFormData({...formData, type: v})}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="reciclavel">Reciclável (Vermelha)</SelectItem>
-                            <SelectItem value="organico">Orgânico (Marrom)</SelectItem>
-                            <SelectItem value="eletronico">Eletrônico (Laranja)</SelectItem>
-                            <SelectItem value="vidro">Vidro (Verde)</SelectItem>
-                            <SelectItem value="papel">Papel (Azul)</SelectItem>
-                            <SelectItem value="metal">Metal (Amarela)</SelectItem>
+                            <SelectItem value="reciclavel">Reciclável</SelectItem>
+                            <SelectItem value="organico">Orgânico</SelectItem>
+                            <SelectItem value="eletronico">Eletrônico</SelectItem>
+                            <SelectItem value="vidro">Vidro</SelectItem>
+                            <SelectItem value="papel">Papel</SelectItem>
+                            <SelectItem value="metal">Metal</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
-                {isEditing && (
+                 {isEditing && (
                     <div className="space-y-2"><Label>Status</Label>
                         <Select value={formData.status} onValueChange={v=>setFormData({...formData, status: v})}>
                             <SelectTrigger><SelectValue /></SelectTrigger>

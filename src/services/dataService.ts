@@ -12,10 +12,11 @@ export interface UserProfile {
   total_descartes?: number;
 }
 
-// --- CLIENTE HTTP ---
+// --- CLIENTE HTTP BLINDADO ---
 async function apiRequest(endpoint: string, method: string = 'GET', body?: any) {
   const sessionStr = localStorage.getItem('recife_sustentavel_session');
   const session = sessionStr ? JSON.parse(sessionStr) : {};
+  
   const headers: any = { 'Content-Type': 'application/json' };
   if (session.token) headers['Authorization'] = `Bearer ${session.token}`;
 
@@ -30,47 +31,28 @@ async function apiRequest(endpoint: string, method: string = 'GET', body?: any) 
     if (method === 'DELETE' && res.ok) return true;
 
     const data = await res.json().catch(() => null);
+    
     if (!res.ok) {
       console.error(`Erro API (${endpoint}):`, data?.error);
       return null;
     }
     return data;
   } catch (error: any) {
-    if (error.message === 'Unauthorized') throw error;
+    if (error.message === 'Unauthorized') {
+       localStorage.removeItem('recife_sustentavel_session');
+       window.location.reload();
+    }
     return null;
   }
 }
 
 // --- USUÁRIO ---
 export async function getCurrentUserProfile() {
-  const sessionStr = localStorage.getItem('recife_sustentavel_session');
-  if (!sessionStr) return null;
-  const session = JSON.parse(sessionStr);
-  if (!session.user || !session.token) return null;
-
-  try {
-    const res = await apiRequest('/api/me');
-    if (res?.user) {
-      session.user = { ...session.user, ...res.user };
-      localStorage.setItem('recife_sustentavel_session', JSON.stringify(session));
-    }
-  } catch (e: any) {
-    if (e.message === 'Unauthorized') {
-      localStorage.removeItem('recife_sustentavel_session');
-      return null;
-    }
-  }
-  return session.user as UserProfile;
+  const res = await apiRequest('/api/me');
+  return res?.user as UserProfile || null;
 }
 
-// --- AÇÕES MOBILE ---
-export const registrarDescarte = (t: string, m: number, img: string) => apiRequest('/api/descarte', 'POST', { tipo_residuo: t, imageBase64: img, multiplicador_volume: m }).then(r => r ? { success: true, points: r.points, msg: r.message } : { success: false, msg: 'Erro' });
-export const resgatarRecompensa = (c: number, t: string) => {
-    const s = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}');
-    return apiRequest('/api/recompensa', 'POST', { userId: s.user.id, cost: c, title: t }).then(r => !!r);
-}
-
-// --- LEITURA MOBILE (Apontando para user-api) ---
+// --- LEITURA ---
 export const getLixeiras = () => apiRequest('/api/user-api?type=lixeiras').then(r => r || []);
 export const getRecompensas = () => apiRequest('/api/user-api?type=recompensas').then(r => r || []);
 export const getTransacoes = () => apiRequest('/api/user-api?type=transacoes').then(r => r || []);
@@ -78,15 +60,35 @@ export const getHistorico = () => apiRequest('/api/user-api?type=historico').the
 export const getPenalidades = () => apiRequest('/api/user-api?type=penalidades').then(r => r || []);
 
 export const getDashboardData = async () => {
-  const h = await getHistorico();
-  return { weeklyProgress: h ? h.length : 0 };
+  const hist = await getHistorico();
+  const now = new Date();
+  const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+  startOfWeek.setHours(0,0,0,0);
+  return { weeklyProgress: (hist || []).filter((d: any) => new Date(d.criado_em) >= startOfWeek).length };
 };
 
-// --- ADMIN (Tudo apontando para admin-api) ---
-export const getAdminDashboardStats = () => apiRequest('/api/admin-api?type=dashboard');
+// --- AÇÕES ---
+export const registrarDescarte = (tipo: string, multiplier: number, imageBase64: string) => 
+  apiRequest('/api/descarte', 'POST', { tipo_residuo: tipo, imageBase64, multiplicador_volume: multiplier })
+  .then(r => r ? { success: true, points: r.points } : { success: false, msg: 'Erro' });
 
+export const resgatarRecompensa = (custo: number, title: string) => {
+    const s = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}');
+    return apiRequest('/api/recompensa', 'POST', { userId: s.user.id, cost: custo, title })
+      .then(r => {
+          if(r && s.user) {
+             s.user.saldo_pontos -= custo;
+             localStorage.setItem('recife_sustentavel_session', JSON.stringify(s));
+          }
+          return !!r;
+      });
+}
+
+// --- ADMIN ---
+// AQUI ESTAVA O ERRO DA AUDITORIA! AGORA APONTA PARA admin-api
+export const getAdminDashboardStats = () => apiRequest('/api/admin-api?type=dashboard');
 export const getAdminUsers = () => apiRequest('/api/admin-api?type=users').then(r => r || []);
-export const updateAdminUserStatus = (id: string, s: string) => apiRequest('/api/admin-api?type=users', 'PUT', { id, status: s });
+export const updateAdminUserStatus = (id: string, status: string) => apiRequest('/api/admin-api?type=users', 'PUT', { id, status });
 export const deleteAdminUser = (id: string) => apiRequest(`/api/admin-api?type=users&id=${id}`, 'DELETE');
 
 export const getAdminBins = () => apiRequest('/api/admin-api?type=bins').then(r => r || []);
@@ -105,5 +107,4 @@ export const deleteAdminPenalty = (id: string) => apiRequest(`/api/admin-api?typ
 
 export const getAuditoriaPendentes = () => apiRequest('/api/admin-api?type=auditoria').then(r => r || []);
 export const processarAuditoria = (id: string, s: string, p: number) => apiRequest('/api/admin-api?type=auditoria', 'POST', { id, status: s, pontos: p });
-
 export const getAdminReports = (p: string) => apiRequest(`/api/admin-api?type=reports&periodo=${p}`).then(r => r || null);

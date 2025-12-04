@@ -15,7 +15,7 @@ export function BinsManagement() {
   const [bins, setBins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
-  // Estado inicial seguro
+  // Inicialização SEGURA para evitar "Uncontrolled input"
   const [formData, setFormData] = useState<any>({ location: '', lat: '', lng: '', type: 'reciclavel', status: 'ativa' });
   const [isEditing, setIsEditing] = useState(false);
 
@@ -27,47 +27,28 @@ export function BinsManagement() {
   useEffect(() => { load(); }, []);
 
   const handleSave = async () => {
-    // Validação rigorosa antes de enviar
+    // Validação
     if (!formData.location || !formData.lat || !formData.lng) {
-        toast.error("Preencha Nome, Latitude e Longitude!");
+        toast.error("Preencha todos os campos!");
         return;
     }
-
-    const payload = { 
-        ...formData, 
-        lat: parseFloat(formData.lat), 
-        lng: parseFloat(formData.lng) 
-    };
-
-    if (isNaN(payload.lat) || isNaN(payload.lng)) {
-        toast.error("Latitude/Longitude inválidas.");
-        return;
-    }
-
+    const payload = { ...formData, lat: parseFloat(formData.lat), lng: parseFloat(formData.lng) };
     const success = isEditing ? await updateAdminBin(payload) : await createAdminBin(payload);
-    
-    if (success) {
-      toast.success(isEditing ? 'Lixeira atualizada!' : 'Lixeira criada!');
-      setShowDialog(false);
-      load();
-    } else {
-      toast.error('Erro ao salvar. Verifique os dados.');
-    }
+    if (success) { toast.success('Salvo!'); setShowDialog(false); load(); } 
+    else toast.error('Erro ao salvar');
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza?')) {
-      const success = await deleteAdminBin(id);
-      if (success) { toast.success('Excluída!'); load(); }
-    }
+    if (confirm('Excluir?')) { await deleteAdminBin(id); load(); }
   };
 
   const openEdit = (bin: any) => {
+    // Garante que lat/lng virem strings para o input
     setFormData({
         id: bin.id,
-        location: bin.location,
-        lat: String(bin.lat), // Converte para string para o input
-        lng: String(bin.lng),
+        location: bin.location || '',
+        lat: bin.lat ? String(bin.lat) : '',
+        lng: bin.lng ? String(bin.lng) : '',
         type: bin.type || 'reciclavel',
         status: bin.status || 'ativa'
     });
@@ -86,16 +67,13 @@ export function BinsManagement() {
   return (
     <div className="p-6 space-y-6 max-w-[1400px]">
       <div className="flex justify-between items-center">
-        <h2>Lixeiras ({bins.length})</h2>
+        <h2>Lixeiras</h2>
         <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4"/> Nova</Button>
       </div>
-
+      {/* Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{isEditing ? 'Editar' : 'Nova'} Lixeira</DialogTitle>
-              <DialogDescription>Dados da localização</DialogDescription>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>{isEditing ? 'Editar' : 'Nova'}</DialogTitle><DialogDescription>Dados</DialogDescription></DialogHeader>
             <div className="space-y-4">
                 <div className="space-y-2"><Label>Nome</Label><Input value={formData.location} onChange={e=>setFormData({...formData, location: e.target.value})} /></div>
                 <div className="grid grid-cols-2 gap-4">
@@ -104,37 +82,29 @@ export function BinsManagement() {
                 </div>
                 <div className="space-y-2"><Label>Tipo</Label>
                     <Select value={formData.type} onValueChange={v=>setFormData({...formData, type: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger><SelectValue/></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="reciclavel">Reciclável</SelectItem>
                             <SelectItem value="organico">Orgânico</SelectItem>
                             <SelectItem value="eletronico">Eletrônico</SelectItem>
+                            <SelectItem value="vidro">Vidro</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
-                {isEditing && (
-                    <div className="space-y-2"><Label>Status</Label>
-                        <Select value={formData.status} onValueChange={v=>setFormData({...formData, status: v})}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="ativa">Ativa</SelectItem><SelectItem value="manutencao">Manutenção</SelectItem></SelectContent>
-                        </Select>
-                    </div>
-                )}
             </div>
             <DialogFooter><Button onClick={handleSave}>Salvar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-
+      {/* Tabela */}
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader><TableRow><TableHead>Local</TableHead><TableHead>Lat/Lng</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Local</TableHead><TableHead>Lat/Lng</TableHead><TableHead>Ações</TableHead></TableRow></TableHeader>
             <TableBody>
               {bins.map((bin) => (
                 <TableRow key={bin.id}>
-                  <TableCell><div className="flex items-center gap-2"><MapPin className="w-4 h-4"/> {bin.location}</div></TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{bin.lat}, {bin.lng}</TableCell>
-                  <TableCell><Badge variant={bin.status === 'ativa' ? 'default' : 'destructive'}>{bin.status}</Badge></TableCell>
+                  <TableCell>{bin.location}</TableCell>
+                  <TableCell className="text-xs">{bin.lat}, {bin.lng}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(bin)}><Edit className="w-4 h-4"/></Button>
                     <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDelete(bin.id)}><Trash2 className="w-4 h-4"/></Button>

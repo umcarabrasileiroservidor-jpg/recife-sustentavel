@@ -12,7 +12,7 @@ export interface UserProfile {
   total_descartes?: number;
 }
 
-// --- CLIENTE HTTP BLINDADO ---
+// --- CLIENTE HTTP GENÉRICO ---
 async function apiRequest(endpoint: string, method: string = 'GET', body?: any) {
   const sessionStr = localStorage.getItem('recife_sustentavel_session');
   const session = sessionStr ? JSON.parse(sessionStr) : {};
@@ -39,8 +39,7 @@ async function apiRequest(endpoint: string, method: string = 'GET', body?: any) 
     return data;
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-       // Não limpa a sessão automaticamente para evitar logout brusco em falhas de rede
-       console.warn("Erro de autorização API");
+       // Não limpa sessão automaticamente para evitar logout por erro de rede
     }
     return null;
   }
@@ -48,20 +47,14 @@ async function apiRequest(endpoint: string, method: string = 'GET', body?: any) 
 
 // --- USUÁRIO ---
 export async function getCurrentUserProfile() {
-  const sessionStr = localStorage.getItem('recife_sustentavel_session');
-  if (!sessionStr) return null;
-  
-  const session = JSON.parse(sessionStr);
-  if (!session.user) return null;
-
-  try {
-    const res = await apiRequest('/api/me');
-    if (res?.user) {
-      session.user = { ...session.user, ...res.user };
-      localStorage.setItem('recife_sustentavel_session', JSON.stringify(session));
-    }
-  } catch (e) { console.log("Usando cache local"); }
-  return session.user as UserProfile;
+  const res = await apiRequest('/api/me');
+  if (res?.user) {
+    const s = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}');
+    s.user = { ...s.user, ...res.user };
+    localStorage.setItem('recife_sustentavel_session', JSON.stringify(s));
+    return s.user as UserProfile;
+  }
+  return null;
 }
 
 // --- AÇÕES ---
@@ -69,19 +62,12 @@ export const registrarDescarte = (t: string, m: number, img: string) =>
   apiRequest('/api/descarte', 'POST', { tipo_residuo: t, imageBase64: img, multiplicador_volume: m })
   .then(r => r ? { success: true, points: r.points } : { success: false, msg: 'Erro' });
 
-export const resgatarRecompensa = (custo: number, title: string) => {
+export const resgatarRecompensa = (c: number, t: string) => {
     const s = JSON.parse(localStorage.getItem('recife_sustentavel_session') || '{}');
-    return apiRequest('/api/recompensa', 'POST', { userId: s.user.id, cost: custo, title })
-      .then(r => {
-          if(r && s.user) {
-             s.user.saldo_pontos -= custo;
-             localStorage.setItem('recife_sustentavel_session', JSON.stringify(s));
-          }
-          return !!r;
-      });
+    return apiRequest('/api/recompensa', 'POST', { userId: s.user.id, cost: c, title: t }).then(r => !!r);
 }
 
-// --- LEITURA ---
+// --- LEITURA MOBILE ---
 export const getLixeiras = () => apiRequest('/api/user-api?type=lixeiras').then(r => r || []);
 export const getRecompensas = () => apiRequest('/api/user-api?type=recompensas').then(r => r || []);
 export const getTransacoes = () => apiRequest('/api/user-api?type=transacoes').then(r => r || []);
@@ -89,13 +75,10 @@ export const getHistorico = () => apiRequest('/api/user-api?type=historico').the
 export const getPenalidades = () => apiRequest('/api/user-api?type=penalidades').then(r => r || []);
 export const getDashboardData = async () => {
   const h = await getHistorico();
-  const now = new Date();
-  const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-  startOfWeek.setHours(0,0,0,0);
-  return { weeklyProgress: (h || []).filter((d: any) => new Date(d.criado_em) >= startOfWeek).length };
+  return { weeklyProgress: h ? h.length : 0 };
 };
 
-// --- ADMIN (CORRIGIDO: AUDITORIA AGORA APONTA CERTO) ---
+// --- ADMIN (ROTAS CORRIGIDAS) ---
 export const getAdminDashboardStats = () => apiRequest('/api/admin-api?type=dashboard');
 export const getAdminUsers = () => apiRequest('/api/admin-api?type=users').then(r => r || []);
 export const updateAdminUserStatus = (id: string, s: string) => apiRequest('/api/admin-api?type=users', 'PUT', { id, status: s });
@@ -115,7 +98,7 @@ export const getAdminPenalties = () => apiRequest('/api/admin-api?type=penalties
 export const createAdminPenalty = (d: any) => apiRequest('/api/admin-api?type=penalties', 'POST', d);
 export const deleteAdminPenalty = (id: string) => apiRequest(`/api/admin-api?type=penalties&id=${id}`, 'DELETE');
 
-// AQUI ESTAVA O ERRO 404! CORRIGIDO:
+// AQUI ESTAVA O ERRO:
 export const getAuditoriaPendentes = () => apiRequest('/api/admin-api?type=auditoria').then(r => r || []);
 export const processarAuditoria = (id: string, s: string, p: number) => apiRequest('/api/admin-api?type=auditoria', 'POST', { id, status: s, pontos: p });
 

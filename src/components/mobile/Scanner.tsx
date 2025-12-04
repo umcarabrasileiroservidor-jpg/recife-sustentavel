@@ -1,25 +1,23 @@
-
 import { useState, useRef, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
-import { ArrowLeft, Camera, CheckCircle2, QrCode, Loader2, Info, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Camera, CheckCircle2, QrCode, Loader2, Info, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { checkTimeLimit } from '../../utils/timeUtils';
 import { QrScannerComponent } from './QrScannerComponent';
 import { useUser } from '../../contexts/UserContext';
 import { registrarDescarte } from '../../services/dataService';
 
-// --- SUPER COMPRESSÃO (Máx 600px, Qualidade 0.6) ---
+// --- SUPER COMPRESSÃO ---
 const compressImage = (base64Str: string): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.src = base64Str;
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      // Reduz para 600px de largura (suficiente para auditoria)
-      const maxWidth = 600;
+      const maxWidth = 800; // Aumentei um pouco para garantir legibilidade
       const ratio = maxWidth / img.width;
       canvas.width = maxWidth;
       canvas.height = img.height * ratio;
@@ -27,8 +25,7 @@ const compressImage = (base64Str: string): Promise<string> => {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        // Qualidade 0.6 (60%) para ficar leve (<500KB)
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
       } else {
         resolve(base64Str);
       }
@@ -47,7 +44,9 @@ export function Scanner({ onNavigate }: ScannerProps) {
   const { user } = useUser();
   const [step, setStep] = useState<Step>('intro'); 
   const [binData, setBinData] = useState<{id: string, type: string} | null>(null);
+  
   const webcamRef = useRef<Webcam>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // Referência para o input de arquivo
 
   useEffect(() => {
     if (user?.ultimo_descarte) {
@@ -65,7 +64,6 @@ export function Scanner({ onNavigate }: ScannerProps) {
     let id = parts[0].trim();
     type = type.toUpperCase();
 
-    // Feedback visual
     let msg = `Lixeira de ${type} identificada!`;
     if (type.includes('PLASTICO')) msg = '🔴 Lixeira de Plástico';
     if (type.includes('PAPEL')) msg = '🔵 Lixeira de Papel';
@@ -75,22 +73,13 @@ export function Scanner({ onNavigate }: ScannerProps) {
     setStep('take_photo');
   };
 
-  const handleSendPhoto = async () => {
-    if (!webcamRef.current || !binData) return;
-    
+  // Função Centralizada de Envio (Recebe o Base64 pronto)
+  const processAndSend = async (imageSrc: string) => {
+    if (!binData) return;
+
     try {
-        const imageSrc = webcamRef.current.getScreenshot();
-        if (!imageSrc) {
-            toast.error("Erro na câmera.");
-            return;
-        }
-
         setStep('sending');
-
-        // 1. Comprime MUITO para garantir envio
         const compressedImage = await compressImage(imageSrc);
-
-        // 2. Envia
         const res = await registrarDescarte(binData.type, 1, compressedImage);
         
         if (res.success) {
@@ -102,6 +91,29 @@ export function Scanner({ onNavigate }: ScannerProps) {
         console.error(error);
         toast.error(`Erro: ${error.message}`);
         setStep('take_photo');
+    }
+  };
+
+  // 1. Captura da Webcam
+  const handleWebcamCapture = () => {
+    const imageSrc = webcamRef.current?.getScreenshot();
+    if (imageSrc) {
+      processAndSend(imageSrc);
+    } else {
+      toast.error("Erro na câmera.");
+    }
+  };
+
+  // 2. Seleção da Galeria
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        processAndSend(base64String);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -117,7 +129,16 @@ export function Scanner({ onNavigate }: ScannerProps) {
 
   return (
     <div className="h-[100dvh] bg-gray-50 flex flex-col relative overflow-hidden">
-      {/* Header Fixo */}
+      {/* Input invisível para galeria */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        accept="image/*" 
+        className="hidden" 
+        onChange={handleFileSelect}
+      />
+
+      {/* Header */}
       <div className="bg-white border-b border-gray-100 p-4 pt-safe-top flex items-center justify-between z-10 shadow-sm shrink-0">
         <button onClick={() => onNavigate('home')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6 text-gray-700" />
@@ -159,14 +180,40 @@ export function Scanner({ onNavigate }: ScannerProps) {
 
           {step === 'take_photo' && binData && (
             <motion.div key="photo" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center w-full h-full">
-               <div className="text-center mb-4"><div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-[#2E8B57] rounded-full text-sm font-bold mb-2"><CheckCircle2 className="w-4 h-4" /> Lixeira Confirmada</div><h2 className="text-xl font-bold text-gray-800">Tire a Foto</h2></div>
-               <div className="relative w-full max-w-sm flex-1 bg-black rounded-3xl overflow-hidden shadow-xl mb-6">
+               <div className="text-center mb-4">
+                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-[#2E8B57] rounded-full text-sm font-bold mb-2">
+                   <CheckCircle2 className="w-4 h-4" /> Lixeira Confirmada
+                 </div>
+                 <h2 className="text-xl font-bold text-gray-800">Envie uma Foto</h2>
+               </div>
+
+               {/* Preview da Câmera */}
+               <div className="relative w-full max-w-sm flex-1 bg-black rounded-3xl overflow-hidden shadow-xl mb-6 min-h-[300px]">
                   <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={{ facingMode: "environment" }} className="w-full h-full object-cover" />
                </div>
-               <div className="w-full px-6 pb-4">
-                 <button onClick={handleSendPhoto} className="w-full h-16 text-white rounded-2xl font-bold text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-transform" style={{ backgroundColor: '#2E8B57' }}>
-                    <Camera className="w-6 h-6" /> Enviar Foto
-                 </button>
+
+               {/* Botões de Ação */}
+               <div className="w-full px-2 pb-4 space-y-3">
+                 <div className="grid grid-cols-4 gap-3">
+                    {/* Botão Galeria (Menor) */}
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="col-span-1 h-16 bg-white border-2 border-gray-200 text-gray-600 rounded-2xl font-bold shadow-sm flex flex-col items-center justify-center active:scale-95 transition-transform"
+                    >
+                      <ImageIcon className="w-6 h-6 mb-1" />
+                    </button>
+
+                    {/* Botão Câmera (Maior) */}
+                    <button 
+                      onClick={handleWebcamCapture}
+                      className="col-span-3 h-16 text-white rounded-2xl font-bold text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-transform" 
+                      style={{ backgroundColor: '#2E8B57' }}
+                    >
+                      <Camera className="w-6 h-6" /> Tirar Foto
+                    </button>
+                 </div>
+                 
+                 <button onClick={() => setStep('scan_qr')} className="w-full text-sm text-gray-400 hover:text-gray-600 py-2">Escanear outra lixeira</button>
                </div>
             </motion.div>
           )}
@@ -175,6 +222,7 @@ export function Scanner({ onNavigate }: ScannerProps) {
             <motion.div key="sending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center text-center">
               <Loader2 className="w-16 h-16 text-[#2E8B57] animate-spin mx-auto mb-4" />
               <h3 className="mt-8 text-xl font-bold text-gray-800">Enviando...</h3>
+              <p className="text-gray-500 mt-2">Comprimindo e salvando foto.</p>
             </motion.div>
           )}
 

@@ -11,16 +11,22 @@ import { HomeMap } from './HomeMap';
 import { toast } from 'sonner';
 
 export function Home({ onNavigate }: any) {
-  const { user, loading } = useUser();
+  // Adicionamos o 'refreshUser' para atualizar o saldo
+  const { user, loading, refreshUser } = useUser();
   const [availability, setAvailability] = useState({ allowed: true, timeLeft: '' });
   const [weeklyCount, setWeeklyCount] = useState(0);
 
   useEffect(() => {
+    // 1. FORÇA A ATUALIZAÇÃO DO SALDO AO ABRIR A HOME
+    refreshUser();
+
     if (user) {
+      // 2. Busca dados da meta semanal
       getDashboardData().then((data: any) => {
         if (data) setWeeklyCount(data.weeklyProgress);
       });
 
+      // 3. Verifica timer de 24h
       const check = () => {
         const lastTime = user.ultimo_descarte;
         const status = checkTimeLimit(lastTime ? new Date(lastTime).getTime() : null);
@@ -31,7 +37,7 @@ export function Home({ onNavigate }: any) {
       const interval = setInterval(check, 60000);
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [refreshUser]); // Executa sempre que o componente montar
 
   const handleScanClick = () => {
     if (!availability.allowed) {
@@ -53,14 +59,13 @@ export function Home({ onNavigate }: any) {
   }
 
   return (
-    <div className="min-h-full pb-24" style={{ backgroundColor: '#f8fafc' }}> {/* Fundo cinza claro */}
+    <div className="min-h-full pb-24" style={{ backgroundColor: '#f8fafc' }}>
       
-      {/* HEADER VERDE ESCURO */}
+      {/* Header Verde Escuro */}
       <div 
         className="pt-8 pb-12 px-6 rounded-b-[2.5rem] shadow-xl relative overflow-hidden"
         style={{ backgroundColor: '#2E8B57', color: 'white' }}
       >
-        {/* Bolha decorativa */}
         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white opacity-10 rounded-full blur-3xl" />
         
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 flex justify-between items-center">
@@ -73,7 +78,7 @@ export function Home({ onNavigate }: any) {
           </div>
         </motion.div>
 
-        {/* CARD DE SALDO (Branco Translúcido) */}
+        {/* Card de Saldo */}
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }} 
           animate={{ scale: 1, opacity: 1 }} 
@@ -86,7 +91,7 @@ export function Home({ onNavigate }: any) {
             <div>
               <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#d1fae5' }}>Seu Saldo</p>
               <div className="flex items-baseline gap-1">
-                <span className="text-5xl font-bold text-white">{user.saldo_pontos}</span>
+                <span className="text-5xl font-bold text-white">{user.saldo_pontos || 0}</span>
                 <span className="text-lg opacity-80 text-white">pts</span>
               </div>
             </div>
@@ -102,10 +107,10 @@ export function Home({ onNavigate }: any) {
         </motion.div>
       </div>
 
-      {/* CONTEÚDO PRINCIPAL */}
+      {/* Conteúdo */}
       <div className="px-6 -mt-6 relative z-20 space-y-6">
         
-        {/* Botão Scanner (Grande) */}
+        {/* Botão Scanner */}
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={handleScanClick}
@@ -153,14 +158,12 @@ export function Home({ onNavigate }: any) {
               Ver mapa completo
             </button>
           </div>
-          
-          {/* Container do Mapa */}
           <div className="h-48 w-full rounded-2xl overflow-hidden shadow-md border border-gray-200 relative z-0 bg-white">
              <HomeMap />
           </div>
         </div>
 
-        {/* Card de Impacto (Verde Gradiente) */}
+        {/* Card Impacto */}
         <div 
           className="rounded-xl p-5 flex items-center justify-between shadow-lg mb-8 text-white"
           style={{ background: 'linear-gradient(to right, #2E8B57, #059669)' }}
